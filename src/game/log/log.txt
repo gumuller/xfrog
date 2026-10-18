@@ -1,0 +1,140 @@
+***********************************************************************************************
+				
+									      XFrog
+
+***********************************************************************************************
+
+
+09/03/2000:
+			- Modified all source codes to the GPL license.
+
+18/02/2000:
+			- Fixed bug on the life bonus couting. This bug wasn't reseting the 
+			  counting status when the game restart.
+			- Added some extra info on the readme.txt
+			- Fixed the start info boundary error.
+
+17/02/2000:
+			- Add the car speed increase on the docs.
+			- Fixed the intro info bounds.
+
+16/02/2000: 
+			- Written the doc files.
+			- Fixed intro message.
+			- Corrected some coments
+			- Fixed a memory alignment check on Memset function.
+			- Revised all code.
+
+15/02/2000:
+			- The high score is encrypted now.
+			- Written a probability table for the Item spawner.
+			- Finally corrected the pizza spot locations.
+			- Written function that gives extra lifes to the player.
+			- Written the high score system.
+			- Corrected intro info.
+			- Re-written the collision code between player and cars. Now it's pretty decent.
+			  The Player object test for the collision, not the Cars.
+
+14/02/2000:			
+			- Changed pizza deliver logic. Now the game asks you to deliver the pizza.
+			- When the player get the "stop item", he collide with cars without dying.
+			- Written the item module.
+			- The parking slots are present now.
+			- Corrected bug that permitted the player to deliver the pizza after it was 
+			  stolen!
+			- The game draws the pizzaria and the player collides with it.
+
+13/02/2000:
+			- Corrected the incorrect coordinates of the pizza spots.
+			- Work, work, work, to get the game fit into less than 128 kbytes.
+			- Included a new car. A female frog car =).
+			- The game has a cash sound now !
+
+
+12/02/2000:
+			- Written menu function to return to the game, and a menu function to start a new
+			  game.
+			- The game draw the parking floor.
+
+11/02/2000:
+			- Player has the sound of death ! =)
+			- Written collision detection functions between cars and player.
+			- Written Xfrog credits on the exit of the game.
+
+10/02/2000:
+			- Written function that handle with the delivering state.
+			- Written 90% of the pizza delivering logic.
+			- Set new values to the roads positions. Now the player can't stay on the side of
+			  the road.
+			- Corrected bug that was not updating the timer while on Alt-Tab state.
+			- Reestructered the time counter to the pizza deliver.		
+
+09/02/2000: 
+			- Started implementation of HUD module. The HUD prints the time left to deliver
+			  the pizza and prints the score too.
+			- Written Z order function.
+			- The player can't pass the buildings.
+
+08/02/2000:
+			- Implemented the player module. The player can already walk around. The player
+			  module is not complete yet.
+
+07/02/2000:
+			- Implemented thief module. This module controls the thief that steals pizzas
+			  from you. The thief is already running around.
+
+06/02/2000:
+			- Removed on of the roads. Now Xfrog has 4 roads with 4 cars on each.
+			- Cars now goes on alternate directions.
+			- Written Surface::Mirror(), that makes a mirror form a surface.
+
+05/02/2000:
+			- Cars are working and running. Too many cars though.
+			- Buildings and sidewalke are draw.
+			- Xfrog timer now inits the random seed by time.
+			- Implemented starting game state. This state prints info for the player, before
+			  the game starts.
+			- Implemented PrintCenter() function.
+
+04/02/2000:
+			- Added game_state_t.
+			- Changed the type game_state_t to engine_state_t.
+			- Corrected bug on the sound module that was allowing to a sound play on more 
+			  channels.
+
+03/02/2000:
+			- Xfrog prints its version on the menu screen.
+			- Font engine written.
+			- Menu has a frog sound !
+
+02/02/2000:
+			- Menu code written.
+
+01/02/2000:
+			- The sound module can play sounds. The sound module has 16 sound channels
+			  to play with. The functions that handle the channels, and its priorities
+			  were already written.
+
+31/01/2000:
+			- Correted bug on the Memcpy() function.
+			- Corrected silly bug on CFS_Init() function, that was reading packs wrong.
+			- Started sound module implementation.
+
+25/01/2000:
+			- Corrected silly bug on the aligment check on the Mem* functions.
+			- CFS module written.
+			- Now Alt+TAB is working.
+			- TGA reader written.
+
+24/01/2000:
+			- Corrected silly bug on the timer.
+			- Written Input module.
+			- Defined the game states
+			- Timer class written.
+			- Surface class written.
+			- Video class written.
+			- DWORD memory copy written.
+			- Error module written.
+			- Apps already starts... =).
+			- DWORD memory fill written.
+			- Started the work.

@@ -1,0 +1,15 @@
+						******************************
+
+								    FS PACKER
+
+						******************************		
+
+
+
+31/01/2000:
+			- Now the packer print some more info about the pack and the files.
+			- Changed packer name to "cfspack".
+
+
+25/01/2000:
+			- All stuff written.

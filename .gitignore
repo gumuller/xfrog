@@ -1,0 +1,13 @@
+# Compiler and IDE output
+*.obj
+*.pdb
+*.ilk
+*.pch
+*.idb
+*.ncb
+*.opt
+*.plg
+.vs/
+[Dd]ebug/
+[Rr]elease/
+src/game/bintest/
