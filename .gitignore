@@ -11,3 +11,8 @@
 [Dd]ebug/
 [Rr]elease/
 src/game/bintest/
+
+# Modern out-of-source builds
+/build/
+/out/
+CMakeUserPresets.json

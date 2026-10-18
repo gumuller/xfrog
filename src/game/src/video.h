@@ -87,6 +87,7 @@ class Video
 		// FIXME: put inline
 		// flip the surfaces
 		void Flip();
+		uint32 PresentedFrames() const { return(m_presented_frames); };
 
 
 		// set the palette
@@ -165,6 +166,7 @@ class Video
 
 		// saves the pitch of back buffer
 		int32				m_pitch;
+		uint32 m_presented_frames;
 };
 
 

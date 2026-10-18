@@ -149,7 +149,7 @@ Player::Player()
 		m_surface[i]		= NULL;
 		m_surface_pizza[i]	= NULL;
 	}
-	for(i = 0; i < NUM_PLAYER_DEAD_FRAMES; i++)
+	for(int32 i = 0; i < NUM_PLAYER_DEAD_FRAMES; i++)
 	{
 		m_surface_dead[i] = NULL;
 	}
@@ -185,7 +185,7 @@ Player::~Player()
 		if(m_surface_pizza[i] != NULL)
 			delete m_surface_pizza[i];
 	}
-	for(i = 0; i < NUM_PLAYER_DEAD_FRAMES; i++)
+	for(int32 i = 0; i < NUM_PLAYER_DEAD_FRAMES; i++)
 	{
 		if(m_surface_dead[i] != NULL)
 			delete m_surface_dead[i];
@@ -576,7 +576,7 @@ bool Player::LoadFrames()
 	curr_template_y	= 0;
 
 	// extract the frames from the template, now with pizza
-	for(frm_num = 0; frm_num < NUM_PLAYER_FRAMES; frm_num++)
+	for(int32 frm_num = 0; frm_num < NUM_PLAYER_FRAMES; frm_num++)
 	{
 		m_surface_pizza[frm_num] = new Surface;
 		m_surface_pizza[frm_num]->Create(32, 32, MEM_SYSTEM);
@@ -633,7 +633,7 @@ bool Player::LoadFrames()
 	curr_template_x	= 0;	
 
 	// extract the frames from the template, now with pizza
-	for(frm_num = 0; frm_num < NUM_PLAYER_DEAD_FRAMES; frm_num++)
+	for(int32 frm_num = 0; frm_num < NUM_PLAYER_DEAD_FRAMES; frm_num++)
 	{
 		m_surface_dead[frm_num] = new Surface;
 		m_surface_dead[frm_num]->Create(32, 32, MEM_SYSTEM);

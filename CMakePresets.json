@@ -1,0 +1,17 @@
+{
+  "version": 3,
+  "cmakeMinimumRequired": { "major": 3, "minor": 24, "patch": 0 },
+  "configurePresets": [
+    {
+      "name": "windows-x86",
+      "displayName": "Windows x86 (Visual Studio 2022)",
+      "generator": "Visual Studio 17 2022",
+      "architecture": "Win32",
+      "binaryDir": "${sourceDir}/build/windows-x86"
+    }
+  ],
+  "buildPresets": [
+    { "name": "release", "configurePreset": "windows-x86", "configuration": "Release", "targets": ["xfrog"] },
+    { "name": "debug", "configurePreset": "windows-x86", "configuration": "Debug", "targets": ["xfrog"] }
+  ]
+}

@@ -60,7 +60,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // STRUCTS ////////////////////////////////////////////////////////////////////////////////////
 
 
-#pragma pack(1)
+#pragma pack(push, 1)
 
 // the cfs header
 struct cfs_header_t
@@ -83,6 +83,9 @@ struct cfs_file_t
 
 	cfs_file_t* next;
 };
+
+#pragma pack(pop)
+static_assert(sizeof(cfs_file_t) == 80, "CFS requires the original 32-bit file layout");
 
 
 // PROTOTYPES /////////////////////////////////////////////////////////////////////////////////

@@ -197,9 +197,9 @@ Input::Input()
 	// DI /////////////////////////////////////////////////////////////
 
 	// creates the dinput object
-	HRESULT result = DirectInputCreateEx(g_hinstance, 
+	HRESULT result = DirectInput8Create(g_hinstance,
 										 DIRECTINPUT_VERSION,
-										 IID_IDirectInput7,
+										 IID_IDirectInput8A,
 										 (void**) &m_di,							
 										 NULL);
 	if(result != DI_OK)
@@ -215,10 +215,7 @@ Input::Input()
 	// KEYBOARD /////////////////////////////////////////////////////////
 
 	// creates the keyboard
-	result = m_di->CreateDeviceEx(GUID_SysKeyboard,
-								  IID_IDirectInputDevice7,
-								  (void**) &m_keyboard,
-								  NULL);
+	result = m_di->CreateDevice(GUID_SysKeyboard, &m_keyboard, NULL);
 	if(result != DI_OK)
 	{
 		Error error("Error trying to create keyboard\n");

@@ -149,7 +149,8 @@ Video::Video()
 		m_palette(NULL),
 		m_is_locked(false),
 		m_back_buffer(NULL),
-		m_clipper(NULL)
+		m_clipper(NULL),
+		m_presented_frames(0)
 {
 	// creates ddraw object
 	HRESULT result = DirectDrawCreateEx(NULL, (VOID**)&m_dd, IID_IDirectDraw7, NULL);
@@ -281,7 +282,10 @@ bool Video::CreateFlipSystem()
 void Video::Flip()
 {
 	// updates the screen
-	while(m_primary->Flip(NULL, DDFLIP_WAIT) != DD_OK);
+	// DDFLIP_WAIT already waits for the flip. A lost surface or focus change
+	// must return to the message loop instead of spinning forever.
+	if(m_primary->Flip(NULL, DDFLIP_WAIT) == DD_OK)
+		m_presented_frames++;
 }
 
 
@@ -518,7 +522,7 @@ void Surface::Mirror()
 	t_ptr		= t_buffer;
 
 	// copies the image back
-	for(y = 0; y < m_height; y++)
+	for(int32 y = 0; y < m_height; y++)
 	{
 		Memcpy(s_ptr, t_ptr, m_width);
 

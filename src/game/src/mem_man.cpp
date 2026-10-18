@@ -43,63 +43,15 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "types.h"
 
 
-// PROTOTYPES /////////////////////////////////////////////////////////////////////////////////
-
-
-void Memcpy(void* dest, void* src, int32 count);
-void Memset(void* dest, int32 num, int32 size);
-
-
-extern "C" void dword_memset(void* dest, int32 num, int32 size);
-extern "C" void dword_memcpy(void* dest, void* src, int32 count);
-
-
-// FUNCTIONS //////////////////////////////////////////////////////////////////////////////////
-
-
-// fills memory as fast as possible
+// Standard library routines handle alignment and zero-length operations safely.
 void Memset(void* dest, int32 num, int32 size)
 {
-	// check for dword bytes align
-	if( ( (((long)dest) | size) & 3) == 0)		
-	{
-		// size in dwords
-		size >>= 2;
-
-		// fills a 32 bit number
-		num = ((num) | (num << 8) | (num << 16) | (num << 24));
-
-		dword_memset(dest, num, size);
-
-		return;
-	}
-	// fill using bytes
-	else
-	{
-		memset(dest, num, size);
-	}
-
-	return;
+	if(size > 0)
+		memset(dest, num, static_cast<size_t>(size));
 }
 
-
-
-// copies memory as fast as possible
 void Memcpy(void* dest, void* src, int32 count)
 {
-	// check for DWORD align
-	if( (( ((long)dest) | ((long)src) | count) & 3) == 0)		
-	{
-		count >>= 2;
-
-		dword_memcpy(dest, src, count);
-
-		return;
-	}
-	else
-	{
-		memcpy(dest, src, count);
-
-		return;
-	}
+	if(count > 0)
+		memcpy(dest, src, static_cast<size_t>(count));
 }

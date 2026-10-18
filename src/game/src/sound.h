@@ -37,6 +37,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // INCLUDES ///////////////////////////////////////////////////////////////////////////////////
 
 
+#include <windows.h>
+#include <mmsystem.h>
 #include <dsound.h>
 
 #include "types.h"

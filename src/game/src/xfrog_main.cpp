@@ -39,6 +39,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 
 #include "mem_man.h"
@@ -90,7 +91,8 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
 		case WM_PAINT:
 			{
 				PAINTSTRUCT	paint_struct;
-				HDC hdc = BeginPaint(hwnd, &paint_struct);
+				BeginPaint(hwnd, &paint_struct);
+				EndPaint(hwnd, &paint_struct);
 
 				return(0);
 			} break;
@@ -153,6 +155,10 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
 
 int WINAPI WinMain(HINSTANCE hinstance, HINSTANCE hprevinstance, LPSTR lpcmdline, int nshowcmd)
 {
+	const bool smoke_test = strcmp(lpcmdline, "--smoke-test") == 0;
+	int smoke_frames = 0;
+	FILE* smoke_log = smoke_test ? fopen("xfrog-smoke.log", "w") : NULL;
+
 	// defines the window
 	WNDCLASSEX wndclass;
 	
@@ -211,6 +217,12 @@ int WINAPI WinMain(HINSTANCE hinstance, HINSTANCE hprevinstance, LPSTR lpcmdline
 	///////////////////////////////////////////////
 	
 
+	if(smoke_log)
+	{
+		fprintf(smoke_log, "Engine initialized\n");
+		fflush(smoke_log);
+	}
+
 	// start the main loop
 	MSG msg;
 	while(true)
@@ -229,6 +241,15 @@ int WINAPI WinMain(HINSTANCE hinstance, HINSTANCE hprevinstance, LPSTR lpcmdline
 			{
 				// update the game
 				EngineFrame();
+				if(smoke_test && ++smoke_frames == 120)
+				{
+					if(smoke_log)
+					{
+						fprintf(smoke_log, "Rendered 120 menu frames\n");
+						fflush(smoke_log);
+					}
+					PostQuitMessage(0);
+				}
 			}
 			else 
 			{
@@ -243,11 +264,23 @@ int WINAPI WinMain(HINSTANCE hinstance, HINSTANCE hprevinstance, LPSTR lpcmdline
 	}	
 
 
+	const bool smoke_passed = smoke_frames == 120 && g_video->PresentedFrames() == 120;
+	if(smoke_log)
+		fprintf(smoke_log, "Successfully presented %u frames\n", g_video->PresentedFrames());
+
 	// ENGINE SHUTDOWN //////////////////////////////
 
 	EngineShutdown();
 
 	/////////////////////////////////////////////////
+
+	if(smoke_log)
+	{
+		fprintf(smoke_log, "Engine shut down\n");
+		fclose(smoke_log);
+	}
+	if(smoke_test && !smoke_passed)
+		return(1);
 
 	// return to windows
 	return(msg.wParam);

@@ -544,7 +544,7 @@ static void DrawParking()
 	}
 
 	// draw the trees
-	for(y = 448; y < 480; y += 16)
+	for(int32 y = 448; y < 480; y += 16)
 	{		
 		for(int32 x = 0; x < 640; x += 16)
 		{

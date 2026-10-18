@@ -323,7 +323,7 @@ bool Thief::LoadFrames()
 
 	curr_template_x = 0;
 	// now extract frames from the template, with pizza
-	for(i = 0; i < NUM_THIEF_FRAMES; i++)
+	for(int32 i = 0; i < NUM_THIEF_FRAMES; i++)
 	{		
 
 		// creates the surface to hold the frame
