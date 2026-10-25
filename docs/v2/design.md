@@ -59,18 +59,27 @@ These are future extensions, not features claimed by this build. The preserved
 1.03 implementation remains available as an optional classic target and at its
 published Git tag; the HD game is the primary 2.0 implementation on both platforms.
 
-Courier running uses only its original directional and carrying sheets.
-Redundant contact drawings are removed from the loop: side views use contact,
-down and passing on each step; front/back use the two opposite contacts.
-Measured bidirectional motion supplies 96 cached samples per loop, warping the
-original drawings into alignment before a brief handover between them. Left travel
-mirrors the whole right cycle. Thief artwork is never used for the courier.
+Courier running uses three directional atlases of separate painted body parts.
+A continuous two-bone leg rig follows contact, compression, push-off, recovery
+and landing poses; the opposite leg is half a cycle ahead. The stance foot moves
+backward at the same speed as player travel, with an airborne interval between
+steps. Authored Hermite tangents match across the loop boundary. The foot path
+stays away from fully folded and fully straight knees to avoid IK popping.
+Arms counter the legs; the carrying torso keeps both hands on the pizza box.
+Left travel mirrors the whole right rig. Thief artwork is never used for it.
 
 The model clock stays in [0, 1), with explicit wrap-aware render interpolation.
-Walking runs at 1.8 cycles per second, with a 2.5-cycle dash cap. Tests cover
-30/60/120 FPS, all 96 rendered samples in four directions with/without pizza,
-exact closure at phase 1, and pixel changes across the last-to-first transition.
-Five-second model-ticked playback also exercises repeated real-time loops.
+Gait rate is speed / (88 * 1.4), capped at 3.5 cycles/second during dash. Standing
+uses the same parts, blending to a neutral stance below 160 pixels/second.
+Tests cover fixed bone lengths, reach limits, planted feet, alternating contacts,
+joint velocity at every key and the seam, 30/60/120 FPS, and 96 rendered samples
+in all four directions with/without pizza. Model-ticked playback exercises
+repeated loops at normal speed. Visual review is still required alongside tests.
+
+The pose basis follows [Adobe's run-cycle guide](https://www.adobe.com/uk/creativecloud/animation/discover/animation-run-cycle.html);
+limb constraints follow [Spine's two-bone IK guidance](https://esotericsoftware.com/spine-ik-constraints).
+The earlier optical-flow interpolation was removed because matching pixels
+between drawings did not establish a consistent anatomical sequence.
 
 Both gameplay characters use the same 88-pixel height, a 20% reduction from 110.
 The thief keeps its original eight-pose animation and sidewalk behavior. Courier

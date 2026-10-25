@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 #include "game.hpp"
+#include <array>
 #include <cstdio>
 #include <filesystem>
 #include <fstream>
@@ -172,18 +173,65 @@ static void animation() {
   check(courierCycleBetween(.99f, .01f, .25f) > .99f &&
             courierCycleBetween(.99f, .01f, .75f) < .01f,
         "rendered phase advances monotonically through wraparound");
-  for (int row = 0; row < 3; ++row) {
-    std::set<int> keys;
-    for (int key = 0; key < courierKeyCount(row); ++key) {
-      int drawing = courierKey(row, key);
-      check(drawing / RunFrames == row,
-            "courier keeps its own directional artwork throughout the loop");
-      keys.insert(drawing);
+  auto distance = [](RigPoint a, RigPoint b) {
+    return std::hypot(a.x - b.x, a.y - b.y);
+  };
+  int airborne = 0;
+  for (int sample = 0; sample < 10000; ++sample) {
+    float phase = sample / 10000.f;
+    auto pose = courierPose(phase, 1);
+    if (!pose.legs[0].planted && !pose.legs[1].planted)
+      ++airborne;
+    for (const auto &leg : pose.legs) {
+      check(std::abs(distance(leg.hip, leg.knee) - .205f) < .00001f &&
+                std::abs(distance(leg.knee, leg.ankle) - .195f) < .00001f,
+            "run keeps both leg bones connected at fixed lengths");
+      float reach = distance(leg.hip, leg.ankle);
+      check(reach > .10f && reach < .395f,
+            "foot targets avoid fully folded or locked knees");
+      if (leg.planted)
+        check(std::abs(leg.ankle.y + .075f) < .00001f,
+              "stance foot remains on ground");
     }
-    check(int(keys.size()) == courierKeyCount(row),
-          "contact and passing keys do not repeat");
-    check(courierKey(row, courierKeyCount(row)) == courierKey(row, 0),
-          "final transition returns to the same first drawing");
+    auto opposite = courierPose(phase + .5f, 1);
+    check(distance(pose.legs[0].ankle, opposite.legs[1].ankle) < .00001f,
+          "left and right legs alternate the same complete stride");
+    if (phase < .299f) {
+      auto next = courierPose(phase + .0001f, 1);
+      float footSpeed = (next.legs[0].ankle.x - pose.legs[0].ankle.x) / .0001f;
+      check(std::abs(footSpeed + CourierStrideLength) < .003f,
+            "stance foot motion cancels courier travel without skating");
+    }
+  }
+  check(airborne > 3000 && airborne < 5000,
+        "run contains airborne intervals between alternating contacts");
+  for (int facing = 0; facing < 4; ++facing) {
+    // A loop can match its endpoint and still jerk there: check velocity too.
+    for (float knot : {0.f, .30f, .45f, .62f, .80f}) {
+      constexpr float epsilon = .0002f;
+      auto before = courierPose(knot - epsilon, facing),
+           at = courierPose(knot, facing),
+           after = courierPose(knot + epsilon, facing);
+      for (int leg = 0; leg < 2; ++leg) {
+        for (auto points :
+             {std::array<RigPoint, 3>{before.legs[leg].ankle,
+                                      at.legs[leg].ankle,
+                                      after.legs[leg].ankle},
+              std::array<RigPoint, 3>{before.legs[leg].knee, at.legs[leg].knee,
+                                      after.legs[leg].knee}}) {
+          RigPoint acceleration{
+              (points[2].x - 2 * points[1].x + points[0].x) / epsilon,
+              (points[2].y - 2 * points[1].y + points[0].y) / epsilon};
+          check(
+              std::hypot(acceleration.x, acceleration.y) < .07f,
+              "joint velocity stays continuous at authored keys and loop seam");
+        }
+      }
+    }
+    auto idle = courierPose(0, facing, 0), other = courierPose(.61f, facing, 0);
+    check(distance(idle.legs[0].ankle, other.legs[0].ankle) < .00001f &&
+              distance(idle.hands[0], other.hands[0]) < .00001f,
+          "idle settles to a stable pose regardless of stopped run phase");
   }
   for (int fps : {30, 60, 120}) {
     Game g(7);
@@ -198,7 +246,7 @@ static void animation() {
         g.update(1.f / 120, {{1, 0}, false, frame % fps == 0});
       int current = courierSample(g.run.animation);
       int step = (current - previous + CourierSamples) % CourierSamples;
-      check(step <= int(std::ceil(2.5f * CourierSamples / fps)),
+      check(step <= int(std::ceil(3.5f * CourierSamples / fps)),
             "walk and dash maintain frame pacing at 30/60/120 FPS");
       check(g.run.animation >= 0 && g.run.animation < 1,
             "animation clock stays bounded without losing long-session "

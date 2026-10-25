@@ -22,30 +22,6 @@ static std::vector<unsigned char> bytes(const std::string &path) {
     throw std::runtime_error("Missing asset: " + path);
   return std::vector<unsigned char>((std::istreambuf_iterator<char>(file)), {});
 }
-static std::vector<Vec> motionData(const std::string &path) {
-  auto data = bytes(path);
-  constexpr size_t Nodes = 3 * CourierKeys * 2 * 64 * 64;
-  if (data.size() != 28 + Nodes * 4 ||
-      std::string(data.begin(), data.begin() + 8) != "XFMOTION")
-    throw std::runtime_error("Invalid courier motion data: " + path);
-  const unsigned expected[] = {64, CourierKeys, 3, 200, 230};
-  for (int i = 0; i < 5; ++i) {
-    size_t at = 8 + i * 4;
-    unsigned value = data[at] | (unsigned(data[at + 1]) << 8) |
-                     (unsigned(data[at + 2]) << 16) |
-                     (unsigned(data[at + 3]) << 24);
-    if (value != expected[i])
-      throw std::runtime_error("Unsupported courier motion data: " + path);
-  }
-  auto component = [&](size_t at) {
-    int value = data[at] | (int(data[at + 1]) << 8);
-    return (value >= 32768 ? value - 65536 : value) / 256.f;
-  };
-  std::vector<Vec> result(Nodes);
-  for (size_t i = 0; i < Nodes; ++i)
-    result[i] = {component(28 + i * 4), component(30 + i * 4)};
-  return result;
-}
 struct Renderer::Font {
   SDL_Texture *texture = nullptr;
   stbtt_bakedchar chars[96]{};
@@ -259,8 +235,6 @@ Image Renderer::image(const std::string &path, int columns, int rows,
       }
   bool uploaded =
       SDL_UpdateTexture(value.texture, nullptr, pixels, value.width * 4);
-  if (components)
-    value.pixels.assign(pixels, pixels + value.width * value.height * 4);
   stbi_image_free(pixels);
   checked(uploaded);
   return value;
@@ -283,10 +257,9 @@ Renderer::Renderer(const std::string &assets, bool hidden) {
   traffic = image(assets + "/traffic.png", 4, 2);
   poses = image(assets + "/poses.png", 4, 3);
   carryPoses = image(assets + "/carry-poses.png", 4, 2);
-  courierRun = image(assets + "/courier.png", 8, 4, true);
-  carryRun = image(assets + "/carry-walk.png", 8, 4, true);
-  courierMotion = motionData(assets + "/courier.motion");
-  carryMotion = motionData(assets + "/carry-walk.motion");
+  courierParts[0] = image(assets + "/courier-parts-front.png", 2, 4, true);
+  courierParts[1] = image(assets + "/courier-parts-side.png", 2, 4, true);
+  courierParts[2] = image(assets + "/courier-parts-back.png", 2, 4, true);
   thiefRun = image(assets + "/thief-run.png", 4, 4, true);
   for (int state = 0; state < 2; ++state) {
     float ref = 0;
@@ -316,15 +289,13 @@ Renderer::Renderer(const std::string &assets, bool hidden) {
   }
 }
 Renderer::~Renderer() {
-  for (auto &entry : courierFrames)
-    SDL_DestroyTexture(entry.second);
+  for (auto &parts : courierParts)
+    SDL_DestroyTexture(parts.texture);
   fonts.clear();
   SDL_DestroyTexture(city.texture);
   SDL_DestroyTexture(traffic.texture);
   SDL_DestroyTexture(poses.texture);
   SDL_DestroyTexture(carryPoses.texture);
-  SDL_DestroyTexture(courierRun.texture);
-  SDL_DestroyTexture(carryRun.texture);
   SDL_DestroyTexture(thiefRun.texture);
   SDL_DestroyTexture(framebuffer);
   SDL_DestroyRenderer(renderer);
@@ -485,112 +456,62 @@ void Renderer::sprite(const Image &atlas, int index, Vec feet, float height,
 void Renderer::courierSprite(Vec feet, int facing, float frame, float height,
                              float alpha, int pose, bool holding,
                              float stride) {
-  if (pose >= 0) {
+  if (pose >= 4) {
     sprite(holding ? carryPoses : poses, pose, feet, height, alpha);
     return;
   }
-  (void)stride;
-  movingCourier(feet, facing, frame, height, alpha, holding);
+  movingCourier(feet, facing, frame, height, alpha, holding, stride);
 }
 void Renderer::movingCourier(Vec feet, int facing, float cycle, float height,
-                             float alpha, bool holding) {
-  int row = facing == 3 ? 1 : std::clamp(facing, 0, 2);
-  int sample = courierSample(cycle);
-  int id = (int(holding) * 3 + row) * CourierSamples + sample;
-  auto found = courierFrames.find(id);
-  SDL_Texture *texture;
-  if (found == courierFrames.end()) {
-    const auto &atlas = holding ? carryRun : courierRun;
-    const auto &motion = holding ? carryMotion : courierMotion;
-    float phase = sample * float(courierKeyCount(row)) / CourierSamples;
-    int key = int(phase);
-    float fraction = phase - key;
-    const int drawings[] = {courierKey(row, key), courierKey(row, key + 1)};
-    auto displacement = [&](Vec p, int half) {
-      float x = std::clamp(p.x * 63 / 255, 0.f, 63.f);
-      float y = std::clamp(p.y * 63 / 255, 0.f, 63.f);
-      int ix = std::min(62, int(x)), iy = std::min(62, int(y));
-      x -= ix;
-      y -= iy;
-      size_t base =
-          ((row * CourierKeys + key) * 2 + half) * 64 * 64 + iy * 64 + ix;
-      return motion[base] * ((1 - x) * (1 - y)) +
-             motion[base + 1] * (x * (1 - y)) +
-             motion[base + 64] * ((1 - x) * y) + motion[base + 65] * (x * y);
-    };
-    auto pixel = [&](Vec p, int half) {
-      int drawing = drawings[half];
-      const auto &rect = atlas.frames[drawing];
-      float scale = atlas.registration[drawing] / 200;
-      float x = (p.x - 128) * scale + atlas.anchors[drawing];
-      float y = (p.y - 230) * scale + rect.y + rect.h;
-      std::array<float, 4> color{};
-      int ix = int(std::floor(x)), iy = int(std::floor(y));
-      x -= ix;
-      y -= iy;
-      for (int dy = 0; dy < 2; ++dy)
-        for (int dx = 0; dx < 2; ++dx) {
-          int sx = ix + dx, sy = iy + dy;
-          if (sx < rect.x || sy < rect.y || sx >= rect.x + rect.w ||
-              sy >= rect.y + rect.h)
-            continue;
-          float weight = (dx ? x : 1 - x) * (dy ? y : 1 - y);
-          const auto *value = &atlas.pixels[(sy * atlas.width + sx) * 4];
-          float a = value[3] / 255.f * weight;
-          for (int c = 0; c < 3; ++c)
-            color[c] += value[c] * a;
-          color[3] += a;
-        }
-      return color;
-    };
-    std::vector<unsigned char> rgba(128 * 128 * 4);
-    for (int y = 0; y < 128; ++y)
-      for (int x = 0; x < 128; ++x) {
-        Vec p{x * 2.f + .5f, y * 2.f + .5f};
-        std::array<float, 4> color{};
-        for (int half = 0; half < 2; ++half) {
-          float distance = half == 0 ? fraction : 1 - fraction;
-          float mix = std::clamp((fraction - .25f) * 2, 0.f, 1.f);
-          mix = mix * mix * (3 - 2 * mix);
-          float weight = half == 0 ? 1 - mix : mix;
-          if (weight <= 0)
-            continue;
-          Vec source = p;
-          // Invert measured motion before the brief handover between drawings.
-          // Bilinear sampling and the handover use premultiplied alpha so the
-          // aligned silhouette stays opaque and its edges stay clean.
-          for (int iteration = 0; iteration < 5; ++iteration)
-            source = source * .35f +
-                     (p - displacement(source, half) * distance) * .65f;
-          auto value = pixel(source, half);
-          for (int c = 0; c < 4; ++c)
-            color[c] += value[c] * weight;
-        }
-        auto *out = &rgba[(y * 128 + x) * 4];
-        if (color[3] > .001f) {
-          for (int c = 0; c < 3; ++c)
-            out[c] = Uint8(std::clamp(color[c] / color[3], 0.f, 255.f));
-          out[3] = Uint8(std::clamp(color[3] * 255, 0.f, 255.f));
-        }
-      }
-    texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA32,
-                                SDL_TEXTUREACCESS_STATIC, 128, 128);
-    checked(texture);
-    checked(SDL_UpdateTexture(texture, nullptr, rgba.data(), 128 * 4));
-    SDL_SetTextureBlendMode(texture, SDL_BLENDMODE_BLEND);
-    SDL_SetTextureScaleMode(texture, SDL_SCALEMODE_LINEAR);
-    courierFrames.emplace(id, texture);
-  } else {
-    texture = found->second;
-  }
+                             float alpha, bool holding, float activity) {
+  const auto &atlas = courierParts[facing == 3 ? 1 : std::clamp(facing, 0, 2)];
+  float mirror = facing == 3 ? -1.f : 1.f;
+  bool side = facing == 1 || facing == 3;
+  auto pose = courierPose(cycle, facing, activity);
+  auto part = [&](int index, RigPoint pivot, float width, float h, float ax,
+                  float ay, float angle, float shade) {
+    if (mirror < 0)
+      ax = 1 - ax;
+    SDL_FRect dst{feet.x + mirror * pivot.x * height - ax * width * height,
+                  feet.y + pivot.y * height - ay * h * height, width * height,
+                  h * height};
+    SDL_FPoint center{ax * dst.w, ay * dst.h};
+    SDL_SetTextureColorMod(atlas.texture, Uint8(255 * shade),
+                           Uint8(255 * shade), Uint8(255 * shade));
+    SDL_SetTextureAlphaMod(atlas.texture, Uint8(255 * alpha));
+    checked(SDL_RenderTextureRotated(
+        renderer, atlas.texture, &atlas.frames[index], &dst, angle * mirror,
+        &center, mirror < 0 ? SDL_FLIP_HORIZONTAL : SDL_FLIP_NONE));
+  };
+  auto limb = [&](int index, RigPoint from, RigPoint to, float width,
+                  float shade) {
+    float dx = to.x - from.x, dy = to.y - from.y;
+    part(index, from, width, std::hypot(dx, dy) / .76f, .5f, .12f,
+         std::atan2(-dx, dy) * 180 / AnimationPi, shade);
+  };
   ellipse({feet.x, feet.y + 3}, height * .22f, height * .065f,
           {17, 43, 50, Uint8(75 * alpha)});
-  SDL_SetTextureAlphaMod(texture, Uint8(255 * alpha));
-  SDL_FRect target{feet.x - height * .64f, feet.y - height * 1.15f,
-                   height * 1.28f, height * 1.28f};
-  checked(SDL_RenderTextureRotated(
-      renderer, texture, nullptr, &target, 0, nullptr,
-      facing == 3 ? SDL_FLIP_HORIZONTAL : SDL_FLIP_NONE));
+  for (int leg : {1, 0}) {
+    const auto &p = pose.legs[leg];
+    float shade = leg == 1 ? .84f : 1.f;
+    limb(5, p.knee, p.ankle, .085f, shade);
+    limb(4, p.hip, p.knee, .11f, shade);
+    part(6 + leg, p.ankle, side ? .21f : .12f, side ? .105f : .17f,
+         side ? .25f : .5f, side ? .3f : .22f, p.footAngle, shade);
+  }
+  if (!holding) {
+    for (int arm : {1, 0})
+      limb(2, pose.shoulders[arm], pose.elbows[arm], .10f,
+           arm == 1 ? .84f : 1.f);
+    limb(3, pose.elbows[1], pose.hands[1], .073f, .84f);
+  }
+  const auto &body = atlas.frames[holding ? 1 : 0];
+  float h = .60f / .94f;
+  part(holding ? 1 : 0, {0, pose.hipY}, h * body.w / body.h, h,
+       side ? (holding ? .44f : .54f) : .5f, .94f, pose.lean, 1);
+  if (!holding)
+    limb(3, pose.elbows[0], pose.hands[0], .073f, 1);
+  SDL_SetTextureColorMod(atlas.texture, 255, 255, 255);
 }
 void Renderer::balloon(Vec anchor, const std::string &title,
                        const std::string &detail, bool interact) {
@@ -847,7 +768,8 @@ void Renderer::menu(const Game &game, float time, Vec mouse) {
   text("SPECIAL DELIVERY", 1426, 168, 24, Ink, true);
   text("Good food.", 1426, 215, 64, Ink, true);
   text("Great timing.", 1426, 281, 64, Coral, true);
-  courierSprite({1420, 850}, 0, 0, 370 + std::sin(time * 2) * 2, 1, 0);
+  courierSprite({1420, 850}, 0, 0, 370 + std::sin(time * 2) * 2, 1, 0, false,
+                0);
   round({1170, 906, 520, 67}, 24, {19, 48, 57, 235});
   text("PERSONAL BEST  " + std::to_string(game.profile.best), 1430, 920, 33,
        Gold, true);

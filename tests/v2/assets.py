@@ -31,15 +31,6 @@ for name, expected in manifest["files"].items():
             assert score.getnchannels() == 2 and score.getsampwidth() == 2
             assert score.getframerate() == 32000
             assert score.getnframes()/score.getframerate() > 180
-    elif name.endswith(".motion"):
-        assert data[:8] == b"XFMOTION"
-        assert struct.unpack_from("<5I", data, 8) == (64, 6, 3, 200, 230)
-        assert len(data) == 28 + 3 * 6 * 2 * 64 * 64 * 4
-        source = name.replace(".motion", ".png")
-        assert expected["source_sha256"] == hashlib.sha256((root/source).read_bytes()).hexdigest(), "motion data belongs to different artwork"
-        samples = struct.unpack_from("<" + "h"*((len(data)-28)//2), data, 28)
-        assert max(samples) <= 96*256 and min(samples) >= -96*256
-        assert any(abs(value) > 256 for value in samples), "missing motion vectors"
     elif name.endswith(".ttf"):
         assert data[:4] in (b"\x00\x01\x00\x00", b"OTTO"), "invalid font"
 assert manifest["courier_grid"] == [8, 4] and manifest["traffic_grid"] == [4, 2]
@@ -49,4 +40,6 @@ assert manifest["thief_grid"] == [2, 2]
 assert manifest["run_inbetweens_grid"] == [4, 4]
 assert manifest["carry_inbetweens_grid"] == [4, 4]
 assert manifest["thief_run_grid"] == [4, 4]
-print("PASS: RGB city, original RGBA courier and matching motion data, eight RGBA vehicles, fonts and license checksums")
+assert manifest["courier_parts_grid"] == [2, 4]
+assert all(f"courier-parts-{direction}.png" in manifest["files"] for direction in ("front", "side", "back"))
+print("PASS: RGB city, RGBA courier rig parts, eight RGBA vehicles, fonts and license checksums")

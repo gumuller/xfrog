@@ -87,13 +87,23 @@
       "height": 1199,
       "color_type": 6
     },
-    "courier.motion": {
-      "sha256": "96df4c496dd5e1ecf17ee20667cb25f730c859d436707f49ec5a00c6fa69dad8",
-      "source_sha256": "44524626ccfa21048f6859a3263b8901f84a3313708980119f0a86afb4ebdda2"
+    "courier-parts-front.png": {
+      "sha256": "378cf077decf4cf78e068ffb45af50980deb522ebcec42b69a4db483805ac3e2",
+      "width": 1024,
+      "height": 1536,
+      "color_type": 6
     },
-    "carry-walk.motion": {
-      "sha256": "5ffd6a32fd461a45c012778f63ab5958f10a98921c2f7f16bfae3842d455d953",
-      "source_sha256": "fe016b921492b7dea5cfad86755ec0eba55efcc7bec376931fd3183599f6431b"
+    "courier-parts-side.png": {
+      "sha256": "1451340f57fb6cd8faadafb21cb949304b23f3bacdf728a7dba3b5464c7f4548",
+      "width": 1024,
+      "height": 1536,
+      "color_type": 6
+    },
+    "courier-parts-back.png": {
+      "sha256": "59285f78982acf1f8c775790afce9329fe9877609897f0acee324fa6ec211aad",
+      "width": 1024,
+      "height": 1536,
+      "color_type": 6
     }
   },
   "poses_grid": [
@@ -122,6 +132,10 @@
   ],
   "thief_run_grid": [
     4,
+    4
+  ],
+  "courier_parts_grid": [
+    2,
     4
   ]
 }

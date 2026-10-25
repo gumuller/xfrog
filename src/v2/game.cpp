@@ -210,7 +210,8 @@ void Game::update(float dt, const Controls &input) {
     run.velocity.y = 0;
   if (length(run.velocity) > 20) {
     run.animation +=
-        dt * std::min(20.f, 14.4f * length(run.velocity) / 285.f) / RunFrames;
+        dt * std::min(3.5f, length(run.velocity) /
+                               (CharacterHeight * CourierStrideLength));
     run.animation -= std::floor(run.animation);
   }
   if (input.interact)

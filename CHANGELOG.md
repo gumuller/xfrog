@@ -52,6 +52,18 @@
 - Validate every rendered sample in all four directions with and without pizza,
   exact loop closure, source-art/motion-data checksums, and repeated live loops.
 
+### Anatomical run-cycle correction
+
+- Replace whole-image motion interpolation with separately painted courier parts
+  and continuous two-bone leg animation in all four directions, with/without pizza.
+- Author alternating contact, push-off, flight and recovery phases with matching
+  endpoint velocities; prevent knee locking and keep planted feet from skating.
+- Blend the same rig into idle, avoiding artwork/proportion changes at each stop.
+- Preserve the thief's existing animation and both characters' reduced size.
+- Add bone-length, reach, ground-contact and joint-continuity regression tests,
+  alongside full-cycle renderer captures and native executable E2E coverage.
+- Remove obsolete optical-flow data and its authoring dependency.
+
 ## 1.03 — 2026-10-25
 
 - Add a native 64-bit Linux port using SDL3 for windowing, graphics, keyboard,

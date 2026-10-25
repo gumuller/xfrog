@@ -109,6 +109,35 @@ int main(int argc, char **argv) {
               "direction and carrying state");
       }
     }
+    // Start/stop the actual model in every direction and carrying state.
+    // Captures review the run-to-idle blend without changing painted anatomy.
+    for (int holding = 0; holding < 2; ++holding)
+      for (int facing = 0; facing < 4; ++facing) {
+        Game transition(7);
+        transition.start();
+        transition.run.cars.clear();
+        transition.run.thief.wait = 1000;
+        transition.run.player = transition.run.previous = {600, 900};
+        transition.run.carrying = holding != 0;
+        transition.run.facing = facing;
+        const Vec directions[] = {{0, 1}, {1, 0}, {0, -1}, {-1, 0}};
+        for (int frame = 0; frame < 40; ++frame) {
+          for (int tick = 0; tick < 4; ++tick)
+            transition.update(
+                1.f / 120,
+                {frame < 20 ? directions[facing] : Vec{}, false, false});
+          renderer.draw(transition, 1, {-1, -1});
+          SDL_Rect region{int(transition.run.player.x) - 80,
+                          int(transition.run.player.y) - 135, 160, 155};
+          renderer.capture(std::string(argv[2]) + "/transition-" +
+                               std::to_string(holding) + "-" +
+                               std::to_string(facing) + "-" +
+                               std::to_string(frame) + ".bmp",
+                           &region);
+        }
+        check(length(transition.run.velocity) < .01f,
+              "all directional run-to-idle transitions settle");
+      }
     game.run.carrying = false;
     game.run.velocity = {};
     game.run.facing = 0;
@@ -197,7 +226,7 @@ int main(int argc, char **argv) {
           playback.update(1.f / 120, {{1, 0}, false, false});
         int current = runFrame(playback.run.animation);
         check((current - last + RunFrames) % RunFrames <= 1,
-              "rendered playback never skips a drawing");
+              "rendered playback advances by less than one eighth of a cycle");
         last = current;
         renderer.draw(playback, frame / 30.f, {-1, -1});
         SDL_Rect region{int(playback.run.player.x) - 80, 215, 160, 155};
