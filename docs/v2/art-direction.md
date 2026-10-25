@@ -15,6 +15,9 @@ this coordinate system, so collision zones correspond to the selected artwork.
 - `assets/v2/courier.png`: eight walk/run frames in each of four directions,
   32 total. Rows face down, right, up, and left. Frames are cropped at runtime
   inside their own grid cells and aligned at the feet.
+- `assets/v2/poses.png`: four directional idle poses, four celebration frames and
+  four harmless dizzy reaction frames. The same courier identity was used as an
+  image reference, bringing the complete character set to 44 frames.
 - `assets/v2/traffic.png`: four vehicles in both directions, eight sprites total.
 - Lilita One supplies the playful headings. Atkinson Hyperlegible supplies clear
   small text. Their SIL Open Font Licenses are included beside the fonts.
@@ -100,3 +103,31 @@ ample transparent margins, no cropping or overlapping, no wheels outside cell.
 No labels, text, words, logos, scenery, backgrounds, ground or cast shadows.
 Genuine transparency. Landscape atlas. This atlas will be directly cut into
 eight game sprites.
+
+## Idle and reaction atlas prompt
+
+Reference image: `assets/v2/courier.png` (character identity and visual style).
+
+Use case: identity-preserve / stylized-concept. The reference image is the final
+walking-sprite atlas for the human courier in Xfrog 2.0. Create a NEW complementary
+production atlas of the EXACT SAME character, identical face, childlike proportions,
+curly dark hair, coral red cap, teal jacket, cream shirt, dark navy trousers, coral
+sneakers, tan pizza backpack with round pizza badge, same dark teal outlines and
+warm shaded cartoon illustration style. Do not change character identity or design.
+Camera is identical elevated three-quarter 2D arcade camera. EXACT regular grid
+FOUR columns by THREE rows, 12 separated full-body sprites, all equal-size invisible
+cells, each character centered with consistent foot baseline and no overlap.
+Row 1: four NEUTRAL STANDING IDLE poses, BOTH feet firmly resting on the same
+baseline, relaxed arms and friendly expression; face DOWN toward camera, RIGHT,
+UP away, LEFT in that order. These are idle standing frames, no running or raised
+feet. Row 2: four sequential CELEBRATION frames facing camera, smiling and making
+a small happy thumbs-up / wave after delivering a pizza. Keep feet grounded
+throughout, small natural arm changes, not huge jumps. Row 3: four sequential
+funny harmless DIZZY/OUCH reaction frames facing camera, with a sheepish smile
+and gentle rubbing of head / wobbling arms, no injuries, no floating stars or
+extra objects; standing body stays consistent. Preserve exact outfit, palette,
+thickness of outlines, head size, lighting, full body height across all twelve
+frames. Production clean isolated sprites with genuine transparent alpha
+background, generous transparent gutters. No floor, shadows, scenery, labels,
+words, text, grid lines or watermarks. This is a NEW atlas to complement the
+existing 32-frame walking atlas, not a replacement for it.

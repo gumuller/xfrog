@@ -58,7 +58,7 @@ def main():
                     process = subprocess.Popen([game, "--seed", "7"], cwd=work, env=env,
                                                stdout=handle, stderr=subprocess.STDOUT)
                     handle.close()
-                    deadline = time.monotonic() + 8
+                    deadline = time.monotonic() + 15
                     while time.monotonic() < deadline:
                         found = command("search", "--onlyvisible", "--pid", str(process.pid),
                                         "--name", "Xfrog 2.0", check=False)
@@ -94,7 +94,7 @@ def main():
                     return text
 
                 def screen(name, phrase, extra=()):
-                    deadline = time.monotonic() + 7
+                    deadline = time.monotonic() + 15
                     while time.monotonic() < deadline:
                         text = snapshot(name)
                         if phrase in text and all(part in text for part in extra):

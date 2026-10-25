@@ -49,14 +49,14 @@ private:
   std::vector<unsigned char> fontData, headingData;
   std::map<int, std::unique_ptr<Font>> fonts;
   SDL_Texture *framebuffer = nullptr;
-  Image city, courier, traffic;
+  Image city, courier, traffic, poses;
   std::vector<Image *> images;
   Font &font(int size);
   Image image(const std::string &path, int columns = 1, int rows = 1);
   void picture(const Image &img, Rect target, const SDL_FRect *source = nullptr,
                float alpha = 1);
   void courierSprite(Vec feet, int facing, float frame, float height = 110,
-                     float alpha = 1);
+                     float alpha = 1, int pose = -1);
   void vehicle(const Car &car, float time);
   void panel(Rect r, Color color);
   void button(const std::string &label, Rect r, const std::string &action,

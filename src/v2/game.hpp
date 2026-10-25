@@ -54,7 +54,7 @@ struct Profile {
 struct Session {
   Vec player{960, 1015}, velocity{}, previous{960, 1015};
   float time = 150, elapsed = 0, heat = 1, invulnerable = 0, dashTime = 0,
-        dashCooldown = 0, animation = 0, shake = 0;
+        dashCooldown = 0, animation = 0, shake = 0, celebration = 0;
   int facing = 0, score = 0, delivered = 0, combo = 0, bestCombo = 0,
       hearts = 3, target = 0, shift = 1, goal = 6, nearMisses = 0;
   bool carrying = false, won = false;

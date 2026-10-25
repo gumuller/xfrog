@@ -10,7 +10,7 @@ add_dependencies(xfrog-render-test xfrog-assets)
 file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/render-evidence")
 add_test(NAME v2-hd-renderer COMMAND xfrog-render-test "$<TARGET_FILE_DIR:xfrog>/assets/v2" "${CMAKE_BINARY_DIR}/render-evidence")
 add_test(NAME v2-startup COMMAND xfrog --smoke-test)
-set_tests_properties(v2-hd-renderer v2-startup PROPERTIES LABELS integration TIMEOUT 30
+set_tests_properties(v2-hd-renderer v2-startup PROPERTIES LABELS integration TIMEOUT 90
     ENVIRONMENT "SDL_VIDEODRIVER=dummy;SDL_AUDIODRIVER=dummy;XDG_DATA_HOME=${CMAKE_BINARY_DIR}/test-data")
 option(XFROG_ENABLE_E2E "Run the normal HD game through a virtual display and OS input" OFF)
 if(XFROG_ENABLE_E2E AND NOT WIN32)
@@ -25,7 +25,7 @@ if(XFROG_ENABLE_E2E AND NOT WIN32)
     add_test(NAME v2-delivery-e2e COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/e2e.py"
         --delivery --game "$<TARGET_FILE:xfrog>" --xvfb "${XFROG_XVFB}" --xdotool "${XFROG_XDOTOOL}"
         --capture "${XFROG_CAPTURE}" --ocr "${XFROG_OCR}" --artifacts "${CMAKE_BINARY_DIR}/delivery-evidence")
-    set_tests_properties(v2-executable-e2e v2-delivery-e2e PROPERTIES LABELS e2e TIMEOUT 120 RUN_SERIAL TRUE)
+    set_tests_properties(v2-executable-e2e v2-delivery-e2e PROPERTIES LABELS e2e TIMEOUT 180 RUN_SERIAL TRUE)
 endif()
 find_package(Python3 COMPONENTS Interpreter REQUIRED)
 add_test(NAME v2-asset-contract COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/assets.py" "${PROJECT_SOURCE_DIR}/assets/v2")

@@ -93,6 +93,7 @@ void Game::interact() {
     int tip = 20 + int(run.heat * 50) + std::min(run.combo, 5) * 15;
     run.score += 100 + tip;
     ++run.delivered;
+    run.celebration = .8f;
     ++run.combo;
     run.bestCombo = std::max(run.bestCombo, run.combo);
     run.carrying = false;
@@ -140,6 +141,7 @@ void Game::update(float dt, const Controls &input) {
   run.elapsed += dt;
   run.invulnerable = std::max(0.f, run.invulnerable - dt);
   run.shake = std::max(0.f, run.shake - dt);
+  run.celebration = std::max(0.f, run.celebration - dt);
   run.dashCooldown = std::max(0.f, run.dashCooldown - dt);
   if (run.time <= 0) {
     finish(false);

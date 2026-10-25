@@ -38,6 +38,16 @@
       "width": 1774,
       "height": 887,
       "color_type": 6
+    },
+    "poses.png": {
+      "sha256": "8aec1c79f4b1bef3f6f8b267f2d771897378ad46b8bf274d30ebb7a5bf46ceea",
+      "width": 1448,
+      "height": 1086,
+      "color_type": 6
     }
-  }
+  },
+  "poses_grid": [
+    4,
+    3
+  ]
 }

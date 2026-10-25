@@ -126,17 +126,33 @@ Renderer::Renderer(const std::string &assets, bool hidden) {
   city = image(assets + "/city.png");
   courier = image(assets + "/courier.png", 8, 4);
   traffic = image(assets + "/traffic.png", 4, 2);
+  poses = image(assets + "/poses.png", 4, 3);
   fontData = bytes(assets + "/Body.ttf");
   headingData = bytes(assets + "/LilitaOne.ttf");
-  font(24);
   font(40);
-  font(92);
+  const int sizes[] = {15, 19, 21, 22, 23, 24, 25, 26, 28, 29, 30,  32, 33,
+                       34, 40, 49, 58, 61, 64, 65, 70, 76, 92, 132, 142};
+  int loaded = 0;
+  for (int size : sizes) {
+    font(size);
+    ++loaded;
+    if (loaded % 4 == 0 || loaded == 25) {
+      SDL_SetRenderDrawColor(renderer, Ink.r, Ink.g, Ink.b, 255);
+      SDL_RenderClear(renderer);
+      text("Opening Frog City...", 960, 475, 40, Cream, true);
+      round({660, 555, 600, 14}, 7, {46, 79, 83});
+      round({660, 555, 600 * loaded / 25.f, 14}, 7, Mint);
+      checked(SDL_RenderPresent(renderer));
+      SDL_PumpEvents();
+    }
+  }
 }
 Renderer::~Renderer() {
   fonts.clear();
   SDL_DestroyTexture(city.texture);
   SDL_DestroyTexture(courier.texture);
   SDL_DestroyTexture(traffic.texture);
+  SDL_DestroyTexture(poses.texture);
   SDL_DestroyTexture(framebuffer);
   SDL_DestroyRenderer(renderer);
   SDL_DestroyWindow(window);
@@ -278,21 +294,22 @@ std::string Renderer::clicked(Vec p) const {
   return {};
 }
 void Renderer::courierSprite(Vec feet, int facing, float frame, float height,
-                             float alpha) {
+                             float alpha, int pose) {
   int index = std::clamp(facing, 0, 3) * 8 + (int(frame) % 8);
-  const auto &src = courier.frames[index];
+  const Image &atlas = pose >= 0 ? poses : courier;
+  const auto &src = atlas.frames[pose >= 0 ? pose : index];
   float w = height * src.w / src.h;
   ellipse({feet.x, feet.y + 3}, height * .22f, height * .065f,
           {17, 43, 50, Uint8(75 * alpha)});
-  picture(courier, {feet.x - w * .5f, feet.y - height, w, height}, &src, alpha);
+  picture(atlas, {feet.x - w * .5f, feet.y - height, w, height}, &src, alpha);
 }
 void Renderer::vehicle(const Car &car, float time) {
   const auto &src = traffic.frames[car.style + (car.speed < 0 ? 4 : 0)];
   float w = car.width + 30, h = w * src.h / src.w;
   ellipse({car.x, car.y + 36}, w * .45f, 12, {9, 27, 35, 70});
   picture(traffic,
-          {car.x - w * .5f, car.y + 44 - h + std::sin(time * 12 + car.x) * .7f,
-           w, h},
+          {car.x - w * .5f,
+           car.y + 44 - h + std::sin(time * 8 + car.style * 1.7f) * .7f, w, h},
           &src);
 }
 void Renderer::board(const Game &game, float time) {
@@ -339,8 +356,15 @@ void Renderer::board(const Game &game, float time) {
             courierSprite(game.run.player - game.run.velocity * (n * .018f),
                           game.run.facing, game.run.animation, 110, .13f);
         }
+        int pose = -1;
+        if (game.run.invulnerable > 1.6f)
+          pose = 8 + std::min(3, int((2 - game.run.invulnerable) * 10));
+        else if (length(game.run.velocity) < 20)
+          pose = game.run.celebration > 0
+                     ? 4 + std::min(3, int((.8f - game.run.celebration) * 5))
+                     : game.run.facing;
         courierSprite(game.run.player, game.run.facing, game.run.animation, 110,
-                      alpha);
+                      alpha, pose);
       } else
         vehicle(game.run.cars[item.index], time);
     for (const auto &p : game.particles)
@@ -453,8 +477,7 @@ void Renderer::menu(const Game &game, float time, Vec mouse) {
   text("SPECIAL DELIVERY", 1426, 168, 24, Ink, true);
   text("Good food.", 1426, 215, 64, Ink, true);
   text("Great timing.", 1426, 281, 64, Coral, true);
-  courierSprite({1420, 850 + std::sin(time * 2) * 6}, 0,
-                int(std::floor(time * 2)) % 2 ? 0 : 4, 370);
+  courierSprite({1420, 850}, 0, 0, 370 + std::sin(time * 2) * 2, 1, 0);
   round({1170, 906, 520, 67}, 24, {19, 48, 57, 235});
   text("PERSONAL BEST  " + std::to_string(game.profile.best), 1430, 920, 33,
        Gold, true);

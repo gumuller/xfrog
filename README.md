@@ -2,7 +2,7 @@
 
 A full-color, widescreen reimagining of Gustavo Simi Muller's original pizza
 courier arcade game. Deliver hot pizzas across Frog City's traffic in a sunny
-cartoon town, with a new 32-frame courier, eight frog-driven vehicles, responsive
+cartoon town, with a new 44-frame courier, eight frog-driven vehicles, responsive
 movement, original music, and a complete shift-based game loop.
 
 ## Play on Linux

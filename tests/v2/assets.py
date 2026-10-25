@@ -13,7 +13,8 @@ for name, expected in manifest["files"].items():
     if name.endswith(".png"):
         assert data[:8] == b"\x89PNG\r\n\x1a\n"
         width, height, depth, color = struct.unpack_from(">IIBB", data, 16)
-        assert width >= 1600 and height >= 800 and depth == 8
+        assert width >= (1600 if name == "city.png" else 1024) and height >= 800 and depth == 8
+        assert width == expected["width"] and height == expected["height"]
         assert color in (2, 6), "indexed art is not permitted in HD assets"
         if name != "city.png":
             assert color == 6, "sprite atlas must preserve alpha"
@@ -27,4 +28,5 @@ for name, expected in manifest["files"].items():
     elif name.endswith(".ttf"):
         assert data[:4] in (b"\x00\x01\x00\x00", b"OTTO"), "invalid font"
 assert manifest["courier_grid"] == [8, 4] and manifest["traffic_grid"] == [4, 2]
-print("PASS: RGB city, 32-frame RGBA courier, eight RGBA vehicles, fonts and license checksums")
+assert manifest["poses_grid"] == [4, 3]
+print("PASS: RGB city, 44-frame RGBA courier, eight RGBA vehicles, fonts and license checksums")

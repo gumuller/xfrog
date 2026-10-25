@@ -4,7 +4,7 @@
 
 - Replace the indexed primary renderer with a shared SDL3 full-color 1080p
   widescreen implementation on Linux and Windows.
-- Add consistent cartoon city artwork, 32 directional courier frames, eight
+- Add consistent cartoon city artwork, 44 courier animation frames, eight
   vehicles, scalable typography, alpha sprites, shadows, particles and dash trails.
 - Add heat-dependent tips, delivery streaks, successive shifts, relaxed/arcade
   difficulty, dash cooldowns and forgiving feet/bumper collision bounds.

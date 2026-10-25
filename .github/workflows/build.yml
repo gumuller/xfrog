@@ -21,6 +21,7 @@ jobs:
       - uses: libsdl-org/setup-sdl@main
         with:
           version: 3.4.18
+          build-type: Release
           install-linux-dependencies: true
       - name: Configure
         run: cmake --preset ${{ matrix.preset }}
