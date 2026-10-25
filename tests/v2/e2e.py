@@ -93,8 +93,8 @@ def main():
                     (output / (name + ".txt")).write_text(text)
                     return text
 
-                def screen(name, phrase, extra=()):
-                    deadline = time.monotonic() + 15
+                def screen(name, phrase, extra=(), timeout=15):
+                    deadline = time.monotonic() + timeout
                     while time.monotonic() < deadline:
                         text = snapshot(name)
                         if phrase in text and all(part in text for part in extra):
@@ -103,9 +103,12 @@ def main():
                         require(process.poll() is None, "game survives while awaiting " + name)
                     raise AssertionError("screen did not show " + phrase)
 
+                # Window creation precedes PNG/font loading. Sanitized software
+                # rendering on CI takes >15s to reach the menu; wait for the real
+                # menu, while keeping ordinary interaction deadlines at 15s.
                 window = launch("first-run")
                 if args.delivery:
-                    screen("01-menu", "CHOOSE YOUR PACE")
+                    screen("01-menu", "CHOOSE YOUR PACE", timeout=60)
                     key("Return")
                     key("space")
                     # Ordinary OS input navigates around the physical pizzeria,
@@ -127,7 +130,7 @@ def main():
                             "earned score and completed delivery persist to disk")
                     (output / "report.json").write_text(json.dumps({"status": "passed", "checks": ["normal executable", "OS keyboard navigation", "live traffic", "real pizza delivery", "earned progress save"]}, indent=2) + "\n")
                     return
-                menu = screen("01-menu", "CHOOSE YOUR PACE", ("HOW TO PLAY", "RELAXED", "ARCADE"))
+                menu = screen("01-menu", "CHOOSE YOUR PACE", ("HOW TO PLAY", "RELAXED", "ARCADE"), timeout=60)
                 require("HOW TO PLAY" in menu and "RELAXED" in menu and "ARCADE" in menu,
                         "menu exposes help and difficulty choices")
                 key("h")
@@ -181,7 +184,7 @@ def main():
                 # Seed a prior record, then observe it through the ordinary menu.
                 profiles[0].write_text(content.replace("best 0", "best 321"))
                 window = launch("second-run")
-                text = screen("15-restored", "SOUND OFF", ("321", "BIGGER CHALLENGE"))
+                text = screen("15-restored", "SOUND OFF", ("321", "BIGGER CHALLENGE"), timeout=60)
                 require("321" in text and "BIGGER CHALLENGE" in text, "record and difficulty reload in a new process")
                 key("Escape")
                 require(process.wait(timeout=5) == 0, "relaunched process exits cleanly")

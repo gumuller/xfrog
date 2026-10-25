@@ -221,10 +221,11 @@ registered horizontally. The courier plays twelve chronological key drawings
 per direction; the thief plays eight per carrying state. No small-stride mesh
 animation is used for running.
 
-## Current courier rig (supersedes earlier courier playback)
+## Approved courier source rig
 
-Production running and idle now use `courier-parts-front.png`,
+The approved source rig uses `courier-parts-front.png`,
 `courier-parts-side.png` and `courier-parts-back.png` in `assets/v2/`.
+These are authoring inputs; current gameplay uses the baked sheets below.
 Each contains eight separately painted components in a 2-column, 4-row layout:
 empty torso/head/backpack, pizza-holding torso/head/backpack, upper arm, forearm,
 thigh, shin, near shoe, far shoe. Whole connected alpha components are extracted
