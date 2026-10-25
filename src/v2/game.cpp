@@ -217,6 +217,7 @@ void Game::update(float dt, const Controls &input) {
   if (input.interact)
     interact();
   updateTraffic(dt);
+  updateHorns(dt);
   for (auto &car : run.cars) {
     Rect box{car.x - car.width * .43f, car.y + 5, car.width * .86f, 35};
     if (box.contains(run.player, 13)) {
@@ -360,6 +361,38 @@ void Game::updateTraffic(float dt) {
     if (car.x < -300) {
       car.x += RoadLoop;
       car.nearAwarded = false;
+    }
+  }
+}
+void Game::updateHorns(float dt) {
+  run.hornCooldown = std::max(0.f, run.hornCooldown - dt);
+  bool crossing = run.player.y > 370 && run.player.y < 680 &&
+                  std::abs(run.velocity.y) > 45 && run.invulnerable <= 0;
+  for (auto &car : run.cars) {
+    car.hornCooldown = std::max(0.f, car.hornCooldown - dt);
+    float forward = (run.player.x - car.x) * direction(car);
+    float bumper = car.width * .5f;
+    bool approaching = crossing && std::abs(car.speed) > 50 && car.x > 0 &&
+                       car.x < Width && forward > bumper + 15 &&
+                       forward < bumper + 270 &&
+                       std::abs(run.player.y - (car.y + 22)) < 85;
+    if (!approaching) {
+      car.hornEncounter = false;
+      continue;
+    }
+    if (car.hornEncounter)
+      continue;
+    car.hornEncounter = true;
+    // One chance per approach, not per simulation tick. A separate generator
+    // keeps this ambience from changing traffic, deliveries or the approved
+    // gait.
+    if (run.hornCooldown > 0 || car.hornCooldown > 0)
+      continue;
+    if (std::uniform_real_distribution<float>(0, 1)(hornRandom) < .45f) {
+      cues.push_back(Cue::Horn);
+      run.hornCooldown =
+          std::uniform_real_distribution<float>(4.5f, 7.f)(hornRandom);
+      car.hornCooldown = 12;
     }
   }
 }

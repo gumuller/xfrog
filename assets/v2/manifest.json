@@ -104,6 +104,48 @@
       "width": 1024,
       "height": 1536,
       "color_type": 6
+    },
+    "courier-baked-0-back.png": {
+      "sha256": "f7e23366fc7e96b7410c0c4827f6680766ac9b26c5aa02ce534e0f2bfbcd5073",
+      "width": 2048,
+      "height": 6272,
+      "color_type": 6,
+      "generator": "xfrog-bake-courier"
+    },
+    "courier-baked-0-front.png": {
+      "sha256": "6e42054fe6f7e48be06dce76ac901e44f053d1fc567c25505342575937e4c4e0",
+      "width": 2048,
+      "height": 6272,
+      "color_type": 6,
+      "generator": "xfrog-bake-courier"
+    },
+    "courier-baked-0-side.png": {
+      "sha256": "2bf08052c2dc8484196dd93875ac7835b8bec5594020651e7edb675417fdb315",
+      "width": 2048,
+      "height": 6272,
+      "color_type": 6,
+      "generator": "xfrog-bake-courier"
+    },
+    "courier-baked-1-back.png": {
+      "sha256": "01733232ad76e3e7766886b5b32462524826885edb8526597162f6ffa3b5cfe9",
+      "width": 2048,
+      "height": 6272,
+      "color_type": 6,
+      "generator": "xfrog-bake-courier"
+    },
+    "courier-baked-1-front.png": {
+      "sha256": "fef7678aa3cebaca210eb239bdde7b8fae02dfb8717f201e0ea3546186cc5947",
+      "width": 2048,
+      "height": 6272,
+      "color_type": 6,
+      "generator": "xfrog-bake-courier"
+    },
+    "courier-baked-1-side.png": {
+      "sha256": "35c64a0f1e7de476cbd8829fed857302396525b888127bed43643d59babe53a6",
+      "width": 2048,
+      "height": 6272,
+      "color_type": 6,
+      "generator": "xfrog-bake-courier"
     }
   },
   "poses_grid": [
@@ -137,5 +179,19 @@
   "courier_parts_grid": [
     2,
     4
-  ]
+  ],
+  "courier_baked": {
+    "columns": 16,
+    "rows": 49,
+    "tile": 128,
+    "samples": 96,
+    "activity_steps": 8,
+    "frames_per_atlas": 769,
+    "bake_height": 96,
+    "anchor": [
+      64,
+      112
+    ],
+    "source_gait_sha256": "bc97eea0479bd5f336bfa3dee67ffaec9863378dee1f4f7ff603494ebd3c06e6"
+  }
 }

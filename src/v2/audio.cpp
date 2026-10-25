@@ -107,6 +107,8 @@ int Audio::soundSamples(Cue cue) {
     return 2400;
   case Cue::Steal:
     return 19200;
+  case Cue::Horn:
+    return 18240;
   }
   return 0;
 }
@@ -165,6 +167,23 @@ float Audio::soundSample(Cue cue, uint64_t sample) {
     const int notes[] = {67, 64, 60};
     wave = pulse(std::fmod(t, .15), frequency(notes[std::min(2, int(t / .15))]),
                  .5);
+    break;
+  }
+  case Cue::Horn: {
+    // A short, rounded dual-tone car horn; restrained enough for town ambience.
+    // The second little toot is quieter, with soft attacks instead of clicks.
+    double u = t < .18 ? t : t - .22;
+    constexpr double duration = .16;
+    if (u >= 0 && u < duration) {
+      float gate = float(std::clamp(u / .012, 0.0, 1.0) *
+                         std::clamp((duration - u) / .025, 0.0, 1.0));
+      wave = gate * (.48f * std::sin(float(2 * Pi * 349 * u)) +
+                     .40f * std::sin(float(2 * Pi * 440 * u)) +
+                     .09f * std::sin(float(2 * Pi * 698 * u)));
+      if (t >= .18)
+        wave *= .8f;
+    }
+    volume = .13f;
     break;
   }
   case Cue::Click:

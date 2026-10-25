@@ -64,6 +64,18 @@
   alongside full-cycle renderer captures and native executable E2E coverage.
 - Remove obsolete optical-flow data and its authoring dependency.
 
+### Pre-rendered sprites and crossing horns
+
+- Keep the approved courier movement unchanged; bake complete sprites for all
+  run phases, directions, carrying states and start/stop intensities.
+- Make hands, trousers and sneakers clearer while preserving foot trajectories.
+- Use complete sprite frames in-game; retain the separate thief animation and
+  reduced character scale.
+- Add occasional soft car horns for nearby approaches while crossing the street,
+  with one chance per approach and global/per-car cooldowns.
+- Verify horn eligibility, cooldowns, bounded audio and independence from gameplay
+  randomness, alongside the existing unit, renderer and native E2E suites.
+
 ## 1.03 — 2026-10-25
 
 - Add a native 64-bit Linux port using SDL3 for windowing, graphics, keyboard,

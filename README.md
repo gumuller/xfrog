@@ -28,13 +28,14 @@ The renderer draws to a 1920x1080 full-color framebuffer and scales to the windo
 or fullscreen display, preserving 16:9. Textures use 24-bit RGB with an additional
 alpha channel for transparency. This is new full-color artwork and rendering,
 rather than an enlarged indexed framebuffer. Keyboard movement simulates at a
-fixed 120 Hz with render interpolation. Courier running uses a layered 2D rig
-with alternating contact, compression, push-off and airborne poses. Joint
-constraints keep the knees connected, and the gait follows distance travelled.
-Idle and running share the same artwork and blend as movement slows. The thief
-keeps its separate eight-pose animation. Both characters use an 88-pixel gameplay
-height, 20% smaller than the previous 110-pixel presentation, including reactions
-and courier dash trails.
+fixed 120 Hz with render interpolation. Courier running uses complete pre-rendered
+RGBA sprites baked from the approved contact/recovery motion: 96 phases per run,
+eight start/stop levels, and a stable idle. The gait timing, stride and movement
+curves are unchanged. Hands and sneakers are larger and clearer. The thief keeps
+its separate eight-pose animation. Both characters retain their 88-pixel nominal
+gameplay height (20% smaller than the earlier 110-pixel presentation).
+Nearby approaching cars occasionally sound a short horn while you cross the road;
+one chance per approach and cooldowns keep this ambient rather than constant.
 Sprite loading rejects detached atlas marks and preserves broad running feet.
 
 

@@ -42,4 +42,8 @@ assert manifest["carry_inbetweens_grid"] == [4, 4]
 assert manifest["thief_run_grid"] == [4, 4]
 assert manifest["courier_parts_grid"] == [2, 4]
 assert all(f"courier-parts-{direction}.png" in manifest["files"] for direction in ("front", "side", "back"))
-print("PASS: RGB city, RGBA courier rig parts, eight RGBA vehicles, fonts and license checksums")
+baked = manifest["courier_baked"]
+assert baked["samples"] == 96 and baked["frames_per_atlas"] == 769
+assert baked["source_gait_sha256"] == hashlib.sha256((root.parent.parent/"src/v2/animation.hpp").read_bytes()).hexdigest(), "baked sprites do not match approved gait"
+assert sum(name.startswith("courier-baked-") for name in manifest["files"]) == 6
+print("PASS: RGB city, RGBA pre-rendered courier sprites, eight RGBA vehicles, fonts and license checksums")

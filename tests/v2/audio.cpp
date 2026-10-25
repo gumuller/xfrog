@@ -87,10 +87,32 @@ int main(int argc, char **argv) {
         word(uint16_t(int16_t(Audio::soundSample(Cue::Deliver, i) * 32767)), 2);
       wav.close();
     }
+    {
+      wav.open(std::string(argv[1]) + ".horn.wav", std::ios::binary);
+      int frames = Audio::soundSamples(Cue::Horn);
+      wav.write("RIFF", 4);
+      word(36 + frames * 2, 4);
+      wav.write("WAVEfmt ", 8);
+      word(16, 4);
+      word(1, 2);
+      word(1, 2);
+      word(48000, 4);
+      word(96000, 4);
+      word(2, 2);
+      word(16, 2);
+      wav.write("data", 4);
+      word(frames * 2, 4);
+      for (int i = 0; i < frames; ++i)
+        word(uint16_t(int16_t(Audio::soundSample(Cue::Horn, i) * 32767)), 2);
+      wav.close();
+      check(Audio::soundSample(Cue::Horn, 0) == 0 &&
+                std::abs(Audio::soundSample(Cue::Horn, frames - 1)) < .001f,
+            "horn soft attack and release avoid clicks");
+    }
     std::set<uint64_t> signatures;
     for (Cue cue :
          {Cue::Pickup, Cue::Deliver, Cue::Hit, Cue::Dash, Cue::NearMiss,
-          Cue::Expired, Cue::Win, Cue::Click, Cue::Steal}) {
+          Cue::Expired, Cue::Win, Cue::Click, Cue::Steal, Cue::Horn}) {
       uint64_t signature = 1469598103934665603ull;
       double energy = 0;
       int count = Audio::soundSamples(cue);
@@ -106,9 +128,9 @@ int main(int argc, char **argv) {
             "effect audible and terminates");
       signatures.insert(signature);
     }
-    check(signatures.size() == 9, "all nine effects have distinct waveforms");
+    check(signatures.size() == 10, "all ten effects have distinct waveforms");
     printf("PASS: original 80-bar stereo score RMS %.4f peak %.4f, zero DC and "
-           "nine distinct SFX\n",
+           "ten distinct SFX\n",
            rms, peak);
   } catch (const std::exception &e) {
     fprintf(stderr, "FAIL: %s\n", e.what());

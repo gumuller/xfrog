@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 #pragma once
+#include "courier_sprites.hpp"
 #include "game.hpp"
 #include <SDL3/SDL.h>
 #include <map>
@@ -30,7 +31,10 @@ public:
   SDL_Window *window = nullptr;
   SDL_Renderer *renderer = nullptr;
   std::vector<Button> buttons;
-  Renderer(const std::string &assets, bool hidden = false);
+  Renderer(const std::string &assets, bool hidden = false,
+           bool authoring = false);
+  // Implemented only by the optional offline art tool.
+  void bakeCourier(const std::string &output);
   ~Renderer();
   void draw(const Game &game, float elapsed, Vec mouse,
             float interpolation = 1);
@@ -52,7 +56,7 @@ private:
   std::map<int, std::unique_ptr<Font>> fonts;
   SDL_Texture *framebuffer = nullptr;
   Image city, traffic, poses, carryPoses, thiefRun;
-  Image courierParts[3];
+  Image courierParts[3], courierBaked[2][3];
   float blend = 1;
   std::vector<Image *> images;
   Font &font(int size);
@@ -67,6 +71,8 @@ private:
               float alpha = 1, bool flip = false, bool registered = false);
   void movingCourier(Vec feet, int facing, float cycle, float height,
                      float alpha, bool holding, float activity = 1);
+  void paintCourier(Vec feet, int facing, float cycle, float height,
+                    float alpha, bool holding, float activity);
   void balloon(Vec anchor, const std::string &title, const std::string &detail,
                bool interact = false);
   void vehicle(const Car &car, float time);

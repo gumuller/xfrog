@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
+#include "courier_sprites.hpp"
 #include "game.hpp"
 #include <array>
 #include <cstdio>
@@ -165,6 +166,20 @@ static void traffic() {
         "wrapped traffic resets close call eligibility");
 }
 static void animation() {
+  check(courierSpriteIndex(0, 1) == 1 + 7 * CourierSamples &&
+            courierSpriteIndex(1, 1) == courierSpriteIndex(0, 1),
+        "full-speed sprite playback preserves all approved gait phases and "
+        "wraps");
+  for (int phase = 0; phase < 96; ++phase) {
+    check(courierSpriteIndex(phase / 96.f, 0) == 0,
+          "idle uses one stable complete sprite");
+    for (int level = 1; level <= 8; ++level)
+      check(courierSpriteIndex(phase / 96.f, level / 8.f) ==
+                1 + (level - 1) * 96 + phase,
+            "each start-stop level keeps the same phase instead of restarting "
+            "the run");
+  }
+
   check(courierSample(.9999f) == CourierSamples - 1 && courierSample(1.f) == 0,
         "courier loop wraps directly from final sample to first");
   check(
@@ -256,6 +271,73 @@ static void animation() {
       previous = current;
     }
     check(loops >= 4, "playback checks several actual loop boundaries");
+  }
+}
+static void horns() {
+  auto approach = [](unsigned seed) {
+    Game game(seed);
+    game.start();
+    game.run.cars = {{350, 416, 150, 170, 0, false}};
+    game.run.player = game.run.previous = {600, 450};
+    game.run.velocity = {0, -285};
+    game.run.thief.wait = 1000;
+    game.cues.clear();
+    return game;
+  };
+  auto heard = [](const Game &game) {
+    return std::count(game.cues.begin(), game.cues.end(), Cue::Horn);
+  };
+  int total = 0;
+  for (unsigned seed = 1; seed <= 100; ++seed) {
+    auto game = approach(seed);
+    game.update(1.f / 120, {{0, -1}, false, false});
+    total += heard(game);
+    check(heard(game) <= 1, "a traffic approach never plays overlapping horns");
+    game.cues.clear();
+    for (int i = 0; i < 20; ++i)
+      game.update(1.f / 120, {{0, -1}, false, false});
+    check(heard(game) == 0, "one horn chance per approach, not per frame");
+    for (int scenario = 0; scenario < 7; ++scenario) {
+      auto quiet = approach(seed);
+      Controls input{{0, -1}, false, false};
+      if (scenario == 0) {
+        quiet.run.velocity = {};
+        input.move = {};
+      }
+      if (scenario == 1)
+        quiet.run.player.y = 350;
+      if (scenario == 2)
+        quiet.run.cars[0].speed = -150;
+      if (scenario == 3)
+        quiet.run.cars[0].x = -20;
+      if (scenario == 4)
+        quiet.run.hornCooldown = 5;
+      if (scenario == 5)
+        quiet.run.cars[0].hornCooldown = 12;
+      if (scenario == 6)
+        quiet.run.cars[0].y = 616;
+      quiet.update(1.f / 120, input);
+      check(heard(quiet) == 0,
+            "no horns while idle, on sidewalk, from receding/offscreen/distant "
+            "cars or during cooldown");
+    }
+  }
+  check(total > 20 && total < 70,
+        "crossing horns are occasional across deterministic seeds");
+  auto audible = approach(7), silent = audible;
+  silent.run.hornCooldown = 100;
+  for (int tick = 0; tick < 600; ++tick) {
+    Controls input{{0, tick % 240 < 120 ? -1.f : 1.f}, false, false};
+    audible.update(1.f / 120, input);
+    silent.update(1.f / 120, input);
+    check(audible.run.animation == silent.run.animation &&
+              audible.run.player.x == silent.run.player.x &&
+              audible.run.player.y == silent.run.player.y,
+          "horns preserve the approved movement and animation timing");
+    for (size_t i = 0; i < audible.run.cars.size(); ++i)
+      check(audible.run.cars[i].x == silent.run.cars[i].x &&
+                audible.run.cars[i].y == silent.run.cars[i].y,
+            "horn randomness cannot alter traffic paths");
   }
 }
 static void carFollowing() {
@@ -545,6 +627,8 @@ int main(int argc, char **argv) {
       traffic();
     else if (suite == "animation")
       animation();
+    else if (suite == "horns")
+      horns();
     else if (suite == "following")
       carFollowing();
     else if (suite == "progression")

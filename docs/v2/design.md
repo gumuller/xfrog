@@ -59,27 +59,31 @@ These are future extensions, not features claimed by this build. The preserved
 1.03 implementation remains available as an optional classic target and at its
 published Git tag; the HD game is the primary 2.0 implementation on both platforms.
 
-Courier running uses three directional atlases of separate painted body parts.
-A continuous two-bone leg rig follows contact, compression, push-off, recovery
-and landing poses; the opposite leg is half a cycle ahead. The stance foot moves
-backward at the same speed as player travel, with an airborne interval between
-steps. Authored Hermite tangents match across the loop boundary. The foot path
-stays away from fully folded and fully straight knees to avoid IK popping.
-Arms counter the legs; the carrying torso keeps both hands on the pizza box.
-Left travel mirrors the whole right rig. Thief artwork is never used for it.
+Courier running uses complete pre-rendered transparent sprites, baked offline
+from the approved gait in `animation.hpp`. Its movement constants, phase clock,
+Hermite curves, body bounce, arm swing and foot paths are unchanged. Hands and
+sneakers are larger and trouser shapes fuller; shoe pivots preserve the same sole
+trajectory. Runtime draws one complete sprite, with no skeletal painting.
 
-The model clock stays in [0, 1), with explicit wrap-aware render interpolation.
-Gait rate is speed / (88 * 1.4), capped at 3.5 cycles/second during dash. Standing
-uses the same parts, blending to a neutral stance below 160 pixels/second.
-Tests cover fixed bone lengths, reach limits, planted feet, alternating contacts,
-joint velocity at every key and the seam, 30/60/120 FPS, and 96 rendered samples
-in all four directions with/without pizza. Model-ticked playback exercises
-repeated loops at normal speed. Visual review is still required alongside tests.
+Each of six directional/carrying atlases has 769 frames: one stable idle and 96
+phases at each of eight motion intensities. Left mirrors the right atlas. Phase
+continues across start/stop levels rather than resetting; selecting the nearest
+baked intensity gives at most 1/16 of the run-to-idle pose range of quantization.
+The unchanged model clock stays in [0, 1), with wrap-aware render interpolation.
+Gait rate remains speed / (88 * 1.4), capped at 3.5 cycles/second during dash.
 
-The pose basis follows [Adobe's run-cycle guide](https://www.adobe.com/uk/creativecloud/animation/discover/animation-run-cycle.html);
-limb constraints follow [Spine's two-bone IK guidance](https://esotericsoftware.com/spine-ik-constraints).
-The earlier optical-flow interpolation was removed because matching pixels
-between drawings did not establish a consistent anatomical sequence.
+Tests cover the preserved gait, phase selection, idle stability, complete rendered
+cycles in all four directions and carrying states, actual model start/stop clips,
+and 30/60/120 FPS. The manifest binds the sprites to the approved gait source;
+the offline baker checks all 4,614 frames for empty or clipped silhouettes.
+Visual review accompanies these checks.
+
+Car horns get a 45% chance on entering a nearby approach while the courier crosses
+vertically through the road. Only moving, on-screen cars approaching the player,
+within 85 pixels of the crossing lane and 270 pixels beyond their bumper qualify.
+Each approach gets one chance, with a 4.5–7 second global and 12 second per-car
+cooldown after a horn. A separate random generator leaves traffic and movement
+unchanged. The 0.38-second soft dual-tone toot uses the existing sound/mute path.
 
 Both gameplay characters use the same 88-pixel height, a 20% reduction from 110.
 The thief keeps its original eight-pose animation and sidewalk behavior. Courier

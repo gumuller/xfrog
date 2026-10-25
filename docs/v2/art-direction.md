@@ -257,3 +257,37 @@ The original full-body courier sheets and unsuccessful in-between sheets are
 retained as historical art references; they are not used for running or idle.
 Pickup, handoff, celebration and hit reactions still use their dedicated sheets.
 The obsolete numeric optical-flow files and generator were removed.
+
+## Pre-rendered courier production (current runtime)
+
+The user approved the rig movement and requested complete pre-rendered sprites
+with more visible hands and feet. The exact `animation.hpp` gait is unchanged.
+`tools/bake_courier.cpp` uses the selected three painted parts atlases to render
+six complete PNG sheets, `assets/v2/courier-baked-{0,1}-{front,side,back}.png`.
+0 is empty handed; 1 carries pizza. Left mirrors the complete side frame.
+No new image generation or thief reference was used for this conversion.
+
+The offline rendering widens forearms/hands from .073 to .12 character heights,
+shins from .085 to .115, and thighs from .11 to .14. Sneakers widen from .21 to
+.25 (side) and .12 to .17 (front/back), with height/anchor changes keeping the
+approved sole trajectory. The rig's joints, curves, timing and character scale
+are preserved. PNGs have straight RGBA alpha, with the rendered premultiplied
+colors converted once offline to prevent dark fringes. Shadows remain in-game.
+
+Layout: 128x128 cells, 16 columns, 49 rows, anchor (64,112), nominal bake height
+96. Cell 0 is idle. Then each activity level 1/8 through 8/8 has 96 consecutive
+phases, for 769 complete frames per atlas and 4,614 total. The runtime scales to
+88 nominal pixels and only draws a complete texture frame. The menu retains its
+separate high-resolution illustration. Source parts are loaded by the baker only.
+
+Regenerate on a system with SDL 3.4 or newer (the runtime still supports 3.2):
+
+```sh
+cmake --preset linux -DXFROG_BUILD_ART_TOOLS=ON
+cmake --build build/linux --target xfrog-bake-courier
+SDL_VIDEODRIVER=dummy build/linux/xfrog-bake-courier assets/v2 assets/v2
+```
+
+Update the manifest hashes after regenerating. The baker validates every cell
+for a complete silhouette and transparent gutters, rejecting clipped hands/feet.
+The shipped PNGs require neither the authoring tool nor skeletal drawing at runtime.

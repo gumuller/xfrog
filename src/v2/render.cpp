@@ -239,7 +239,7 @@ Image Renderer::image(const std::string &path, int columns, int rows,
   checked(uploaded);
   return value;
 }
-Renderer::Renderer(const std::string &assets, bool hidden) {
+Renderer::Renderer(const std::string &assets, bool hidden, bool authoring) {
   checked(SDL_CreateWindowAndRenderer("Xfrog 2.0 - The Pizza Run", 1920, 1080,
                                       SDL_WINDOW_RESIZABLE |
                                           (hidden ? SDL_WINDOW_HIDDEN : 0),
@@ -257,9 +257,23 @@ Renderer::Renderer(const std::string &assets, bool hidden) {
   traffic = image(assets + "/traffic.png", 4, 2);
   poses = image(assets + "/poses.png", 4, 3);
   carryPoses = image(assets + "/carry-poses.png", 4, 2);
-  courierParts[0] = image(assets + "/courier-parts-front.png", 2, 4, true);
-  courierParts[1] = image(assets + "/courier-parts-side.png", 2, 4, true);
-  courierParts[2] = image(assets + "/courier-parts-back.png", 2, 4, true);
+  const char *directions[] = {"front", "side", "back"};
+  if (authoring) {
+    for (int facing = 0; facing < 3; ++facing)
+      courierParts[facing] = image(
+          assets + "/courier-parts-" + directions[facing] + ".png", 2, 4, true);
+  } else {
+    for (int holding = 0; holding < 2; ++holding)
+      for (int facing = 0; facing < 3; ++facing) {
+        auto &atlas = courierBaked[holding][facing];
+        atlas = image(assets + "/courier-baked-" + std::to_string(holding) +
+                      "-" + directions[facing] + ".png");
+        if (atlas.width != CourierColumns * CourierTile ||
+            atlas.height != CourierRows * CourierTile)
+          throw std::runtime_error(
+              "Courier sprite atlas layout does not match this build");
+      }
+  }
   thiefRun = image(assets + "/thief-run.png", 4, 4, true);
   for (int state = 0; state < 2; ++state) {
     float ref = 0;
@@ -289,6 +303,9 @@ Renderer::Renderer(const std::string &assets, bool hidden) {
   }
 }
 Renderer::~Renderer() {
+  for (auto &state : courierBaked)
+    for (auto &atlas : state)
+      SDL_DestroyTexture(atlas.texture);
   for (auto &parts : courierParts)
     SDL_DestroyTexture(parts.texture);
   fonts.clear();
@@ -464,54 +481,22 @@ void Renderer::courierSprite(Vec feet, int facing, float frame, float height,
 }
 void Renderer::movingCourier(Vec feet, int facing, float cycle, float height,
                              float alpha, bool holding, float activity) {
-  const auto &atlas = courierParts[facing == 3 ? 1 : std::clamp(facing, 0, 2)];
-  float mirror = facing == 3 ? -1.f : 1.f;
-  bool side = facing == 1 || facing == 3;
-  auto pose = courierPose(cycle, facing, activity);
-  auto part = [&](int index, RigPoint pivot, float width, float h, float ax,
-                  float ay, float angle, float shade) {
-    if (mirror < 0)
-      ax = 1 - ax;
-    SDL_FRect dst{feet.x + mirror * pivot.x * height - ax * width * height,
-                  feet.y + pivot.y * height - ay * h * height, width * height,
-                  h * height};
-    SDL_FPoint center{ax * dst.w, ay * dst.h};
-    SDL_SetTextureColorMod(atlas.texture, Uint8(255 * shade),
-                           Uint8(255 * shade), Uint8(255 * shade));
-    SDL_SetTextureAlphaMod(atlas.texture, Uint8(255 * alpha));
-    checked(SDL_RenderTextureRotated(
-        renderer, atlas.texture, &atlas.frames[index], &dst, angle * mirror,
-        &center, mirror < 0 ? SDL_FLIP_HORIZONTAL : SDL_FLIP_NONE));
-  };
-  auto limb = [&](int index, RigPoint from, RigPoint to, float width,
-                  float shade) {
-    float dx = to.x - from.x, dy = to.y - from.y;
-    part(index, from, width, std::hypot(dx, dy) / .76f, .5f, .12f,
-         std::atan2(-dx, dy) * 180 / AnimationPi, shade);
-  };
+  const auto &atlas =
+      courierBaked[holding][facing == 3 ? 1 : std::clamp(facing, 0, 2)];
+  int index = courierSpriteIndex(cycle, activity);
+  SDL_FRect source{float(index % CourierColumns * CourierTile),
+                   float(index / CourierColumns * CourierTile), CourierTile,
+                   CourierTile};
+  float scale = height / CourierBakeHeight;
+  SDL_FRect target{feet.x - CourierAnchorX * scale,
+                   feet.y - CourierAnchorY * scale, CourierTile * scale,
+                   CourierTile * scale};
   ellipse({feet.x, feet.y + 3}, height * .22f, height * .065f,
           {17, 43, 50, Uint8(75 * alpha)});
-  for (int leg : {1, 0}) {
-    const auto &p = pose.legs[leg];
-    float shade = leg == 1 ? .84f : 1.f;
-    limb(5, p.knee, p.ankle, .085f, shade);
-    limb(4, p.hip, p.knee, .11f, shade);
-    part(6 + leg, p.ankle, side ? .21f : .12f, side ? .105f : .17f,
-         side ? .25f : .5f, side ? .3f : .22f, p.footAngle, shade);
-  }
-  if (!holding) {
-    for (int arm : {1, 0})
-      limb(2, pose.shoulders[arm], pose.elbows[arm], .10f,
-           arm == 1 ? .84f : 1.f);
-    limb(3, pose.elbows[1], pose.hands[1], .073f, .84f);
-  }
-  const auto &body = atlas.frames[holding ? 1 : 0];
-  float h = .60f / .94f;
-  part(holding ? 1 : 0, {0, pose.hipY}, h * body.w / body.h, h,
-       side ? (holding ? .44f : .54f) : .5f, .94f, pose.lean, 1);
-  if (!holding)
-    limb(3, pose.elbows[0], pose.hands[0], .073f, 1);
-  SDL_SetTextureColorMod(atlas.texture, 255, 255, 255);
+  SDL_SetTextureAlphaMod(atlas.texture, Uint8(255 * alpha));
+  checked(SDL_RenderTextureRotated(
+      renderer, atlas.texture, &source, &target, 0, nullptr,
+      facing == 3 ? SDL_FLIP_HORIZONTAL : SDL_FLIP_NONE));
 }
 void Renderer::balloon(Vec anchor, const std::string &title,
                        const std::string &detail, bool interact) {
@@ -768,8 +753,7 @@ void Renderer::menu(const Game &game, float time, Vec mouse) {
   text("SPECIAL DELIVERY", 1426, 168, 24, Ink, true);
   text("Good food.", 1426, 215, 64, Ink, true);
   text("Great timing.", 1426, 281, 64, Coral, true);
-  courierSprite({1420, 850}, 0, 0, 370 + std::sin(time * 2) * 2, 1, 0, false,
-                0);
+  sprite(poses, 0, {1420, 850}, 370 + std::sin(time * 2) * 2);
   round({1170, 906, 520, 67}, 24, {19, 48, 57, 235});
   text("PERSONAL BEST  " + std::to_string(game.profile.best), 1430, 920, 33,
        Gold, true);

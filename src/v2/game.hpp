@@ -36,7 +36,8 @@ enum class Cue {
   Expired,
   Win,
   Click,
-  Steal
+  Steal,
+  Horn
 };
 struct Controls {
   Vec move;
@@ -47,7 +48,8 @@ struct Car {
   int style = 0;
   bool nearAwarded = false;
   float cruise = 0, mergeFrom = 0, mergeTo = 0, mergeAge = 0, signal = 0,
-        mergeCooldown = 8, previousY = 0, mergeSpeed = 0;
+        mergeCooldown = 8, previousY = 0, mergeSpeed = 0, hornCooldown = 0;
+  bool hornEncounter = false;
 };
 struct Thief {
   Vec p{-120, DeliverySidewalkY}, previous{-120, DeliverySidewalkY};
@@ -74,7 +76,7 @@ struct Session {
   Vec player{960, 1015}, velocity{}, previous{960, 1015};
   float time = 150, elapsed = 0, heat = 1, invulnerable = 0, dashTime = 0,
         dashCooldown = 0, animation = 0, shake = 0, celebration = 0, pickup = 0,
-        handoff = 0, previousAnimation = 0;
+        handoff = 0, previousAnimation = 0, hornCooldown = 0;
   int facing = 0, score = 0, delivered = 0, combo = 0, bestCombo = 0,
       hearts = 3, target = 0, shift = 1, goal = 6, nearMisses = 0, level = 1,
       stolen = 0, laneChanges = 0;
@@ -97,7 +99,8 @@ public:
                           "THE WORKSHOP", "CORAL CAFE"};
   const Rect shopSolid{690, 685, 530, 285};
   explicit Game(uint32_t seed = 1)
-      : random(seed), trafficRandom(seed ^ 0x51a7u) {}
+      : random(seed), trafficRandom(seed ^ 0x51a7u),
+        hornRandom(seed ^ 0x484f524eu) {}
   void start(bool next = false);
   void update(float dt, const Controls &input);
   void pause();
@@ -113,13 +116,14 @@ public:
   bool requestLaneChange(size_t index);
 
 private:
-  std::mt19937 random, trafficRandom;
+  std::mt19937 random, trafficRandom, hornRandom;
   float randomFloat(float lo, float hi);
   void toast(std::string text, uint32_t color);
   void finish(bool won);
   void updateVisuals(float dt);
   void updateThief(float dt);
   void updateTraffic(float dt);
+  void updateHorns(float dt);
   bool laneChangeClear(size_t index, float delay, float speed) const;
 };
 Profile loadProfile(const std::string &path);
