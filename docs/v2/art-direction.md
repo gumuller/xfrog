@@ -220,3 +220,14 @@ so the widest feet remain intact. Rows share a reference scale and heads are
 registered horizontally. The courier plays twelve chronological key drawings
 per direction; the thief plays eight per carrying state. No small-stride mesh
 animation is used for running.
+
+## Current courier playback correction
+
+The courier uses only `courier.png` and `carry-walk.png` when running. The
+in-between sheets above are retained as earlier source variants and are not
+loaded. The side-view contact and recoil slots are reordered, with one coherent
+sheet and orientation per cycle. Left travel mirrors the whole right cycle;
+there is no front/back mid-cycle mirroring. Idle/reaction art is unchanged.
+The thief still uses only `thief-run.png`, now rendered at 110 pixels high.
+No artwork files changed in this correction. Discarded generation experiments
+were not copied into the repository or used in the game.

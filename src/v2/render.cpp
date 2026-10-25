@@ -259,8 +259,6 @@ Renderer::Renderer(const std::string &assets, bool hidden) {
   carryPoses = image(assets + "/carry-poses.png", 4, 2);
   courierRun = image(assets + "/courier.png", 8, 4, true);
   carryRun = image(assets + "/carry-walk.png", 8, 4, true);
-  runBetween = image(assets + "/run-inbetweens.png", 4, 4, true);
-  carryBetween = image(assets + "/carry-inbetweens.png", 4, 4, true);
   thiefRun = image(assets + "/thief-run.png", 4, 4, true);
   for (int state = 0; state < 2; ++state) {
     float ref = 0;
@@ -297,8 +295,6 @@ Renderer::~Renderer() {
   SDL_DestroyTexture(carryPoses.texture);
   SDL_DestroyTexture(courierRun.texture);
   SDL_DestroyTexture(carryRun.texture);
-  SDL_DestroyTexture(runBetween.texture);
-  SDL_DestroyTexture(carryBetween.texture);
   SDL_DestroyTexture(thiefRun.texture);
   SDL_DestroyTexture(framebuffer);
   SDL_DestroyRenderer(renderer);
@@ -464,18 +460,11 @@ void Renderer::courierSprite(Vec feet, int facing, float frame, float height,
     return;
   }
   (void)stride;
-  // Original broad contacts plus four newly drawn recoil/passing frames.
-  // Twelve chronological key drawings per direction, without mesh distortion.
-  int phase = int(frame * 12) % 12;
-  const int sequence[12] = {0, 1, -1, -2, 2, 3, 4, 5, -3, -4, 6, 7};
-  int key = sequence[phase];
-  bool flip = (facing == 0 || facing == 2) && phase >= 6;
-  if (key >= 0)
-    sprite(holding ? carryRun : courierRun, facing * 8 + key, feet, height,
-           alpha, flip, true);
-  else
-    sprite(holding ? carryBetween : runBetween, facing * 4 + (-key - 1), feet,
-           height, alpha, flip, true);
+  // One original courier sheet per direction and carrying state. The left
+  // view mirrors the complete right-facing cycle, never half of a cycle.
+  auto key = courierRunPose(facing, frame);
+  sprite(holding ? carryRun : courierRun, key.index, feet, height, alpha,
+         key.flip, true);
 }
 void Renderer::balloon(Vec anchor, const std::string &title,
                        const std::string &detail, bool interact) {
@@ -534,6 +523,8 @@ void Renderer::vehicle(const Car &car, float time) {
 }
 void Renderer::board(const Game &game, float time) {
   Vec feet = game.run.previous * (1 - blend) + game.run.player * blend;
+  float animation =
+      game.run.previousAnimation * (1 - blend) + game.run.animation * blend;
   picture(city, {0, 0, Width, Height});
   if (game.screen != Screen::Menu) {
     Vec destination =
@@ -569,8 +560,8 @@ void Renderer::board(const Game &game, float time) {
       if (item.index == -2) {
         const auto &t = game.run.thief;
         Vec p = t.previous * (1 - blend) + t.p * blend;
-        sprite(thiefRun, (t.hasPizza ? 8 : 0) + int(t.animation * 8) % 8, p,
-               121, 1, t.direction < 0, true);
+        sprite(thiefRun, (t.hasPizza ? 8 : 0) + runFrame(t.animation), p, 110,
+               1, t.direction < 0, true);
       } else if (item.index < 0) {
         float alpha = game.run.invulnerable > 0
                           ? (.55f + .45f * std::abs(std::sin(time * 15)))
@@ -578,7 +569,7 @@ void Renderer::board(const Game &game, float time) {
         if (game.run.dashTime > 0) {
           for (int n = 3; n > 0; --n)
             courierSprite(feet - game.run.velocity * (n * .018f),
-                          game.run.facing, game.run.animation, 110, .13f, -1,
+                          game.run.facing, animation, 110, .13f, -1,
                           game.run.carrying);
         }
         int pose = -1;
@@ -601,8 +592,8 @@ void Renderer::board(const Game &game, float time) {
                        : game.run.facing;
           }
         }
-        courierSprite(feet, game.run.facing, game.run.animation, 110, alpha,
-                      pose, holding,
+        courierSprite(feet, game.run.facing, animation, 110, alpha, pose,
+                      holding,
                       std::min(1.f, length(game.run.velocity) / 160.f));
       } else {
         Car car = game.run.cars[item.index];
@@ -814,9 +805,9 @@ void Renderer::draw(const Game &game, float elapsed, Vec mouse,
   SDL_RenderTexture(renderer, framebuffer, nullptr, nullptr);
   checked(SDL_RenderPresent(renderer));
 }
-void Renderer::capture(const std::string &path) {
+void Renderer::capture(const std::string &path, const SDL_Rect *area) {
   checked(SDL_SetRenderTarget(renderer, framebuffer));
-  SDL_Surface *surface = SDL_RenderReadPixels(renderer, nullptr);
+  SDL_Surface *surface = SDL_RenderReadPixels(renderer, area);
   SDL_SetRenderTarget(renderer, nullptr);
   if (!surface)
     throw std::runtime_error(SDL_GetError());

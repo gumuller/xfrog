@@ -28,11 +28,12 @@ The renderer draws to a 1920x1080 full-color framebuffer and scales to the windo
 or fullscreen display, preserving 16:9. Textures use 24-bit RGB with an additional
 alpha channel for transparency. This is new full-color artwork and rendering,
 rather than an enlarged indexed framebuffer. Keyboard movement simulates at a
-fixed 120 Hz with render interpolation. Running uses the original wide, open-leg sprite poses with four new recoil and
-passing-leg drawings per direction: twelve key poses both empty-handed and
-carrying a pizza. The thief has a separate eight-pose run in each carrying state.
-Row-based scale and head registration keep the character stable between poses. Sprite loading rejects disconnected atlas
-marks so neighboring frames cannot produce specks above the courier's head.
+fixed 120 Hz with render interpolation. Courier animation uses only its original
+courier sheets, with corrected contact/recoil ordering, consistent orientation
+throughout each loop, and evenly paced eight-frame cycles. Gait speed is capped
+at 20 drawings per second so dashing does not skip poses at 30+ FPS. The thief
+keeps its separate eight-pose animation, sized to match the courier at 110 pixels.
+Sprite loading rejects detached atlas marks and preserves broad running feet.
 
 
 ## Play on Windows
@@ -72,7 +73,11 @@ goal and traffic speed. Traffic also advances within a shift after every two
 deliveries and every 50 seconds, including Relaxed mode. At traffic level 3,
 cars can signal for 1.2 seconds before a smooth two-second lane change between
 the same-direction outer lanes. Projected gaps in the opposing lane and a safe
-distance from the courier are required. All vehicle classes share a 170-pixel
+distance from the courier are required. Faster cars signal to overtake when a
+safe same-direction route is available. They brake and follow when it is blocked.
+Whole queues keep visible bumper gaps, including across the screen-wrap boundary.
+Merge speed is held steady, and the path is rechecked before steering starts.
+All vehicle classes share a 170-pixel
 collision footprint and a consistent on-screen width.
 
 The thief always runs along the upper sidewalk beside the delivery addresses, warns before entering,

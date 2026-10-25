@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 #pragma once
+#include "animation.hpp"
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
@@ -46,7 +47,7 @@ struct Car {
   int style = 0;
   bool nearAwarded = false;
   float cruise = 0, mergeFrom = 0, mergeTo = 0, mergeAge = 0, signal = 0,
-        mergeCooldown = 8, previousY = 0;
+        mergeCooldown = 8, previousY = 0, mergeSpeed = 0;
 };
 struct Thief {
   Vec p{-120, DeliverySidewalkY}, previous{-120, DeliverySidewalkY};
@@ -73,7 +74,7 @@ struct Session {
   Vec player{960, 1015}, velocity{}, previous{960, 1015};
   float time = 150, elapsed = 0, heat = 1, invulnerable = 0, dashTime = 0,
         dashCooldown = 0, animation = 0, shake = 0, celebration = 0, pickup = 0,
-        handoff = 0;
+        handoff = 0, previousAnimation = 0;
   int facing = 0, score = 0, delivered = 0, combo = 0, bestCombo = 0,
       hearts = 3, target = 0, shift = 1, goal = 6, nearMisses = 0, level = 1,
       stolen = 0, laneChanges = 0;
@@ -118,6 +119,8 @@ private:
   void finish(bool won);
   void updateVisuals(float dt);
   void updateThief(float dt);
+  void updateTraffic(float dt);
+  bool laneChangeClear(size_t index, float delay, float speed) const;
 };
 Profile loadProfile(const std::string &path);
 bool saveProfile(const std::string &path, const Profile &profile);

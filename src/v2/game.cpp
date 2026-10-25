@@ -153,6 +153,7 @@ void Game::update(float dt, const Controls &input) {
   if (screen == Screen::Results)
     return;
   run.previous = run.player;
+  run.previousAnimation = run.animation;
   run.time = std::max(0.f, run.time - dt);
   run.elapsed += dt;
   int level =
@@ -208,44 +209,12 @@ void Game::update(float dt, const Controls &input) {
   else
     run.velocity.y = 0;
   if (length(run.velocity) > 20)
-    run.animation += dt * length(run.velocity) / 160.f;
+    run.animation +=
+        dt * std::min(20.f, 14.4f * length(run.velocity) / 285.f) / RunFrames;
   if (input.interact)
     interact();
-  for (size_t i = 0; i < run.cars.size(); ++i) {
-    auto &car = run.cars[i];
-    car.previousY = car.y;
-    if (car.cruise > 0)
-      car.speed = std::copysign(
-          car.cruise * (1 + .045f * (run.level - run.shift)), car.speed);
-    car.mergeCooldown = std::max(0.f, car.mergeCooldown - dt);
-    if (car.signal > 0) {
-      car.signal = std::max(0.f, car.signal - dt);
-      if (car.signal == 0)
-        car.mergeAge = .0001f;
-    } else if (car.mergeAge > 0) {
-      car.mergeAge += dt;
-      float t = std::min(1.f, car.mergeAge / 2.0f);
-      float smooth = t * t * (3 - 2 * t);
-      car.y = car.mergeFrom + (car.mergeTo - car.mergeFrom) * smooth;
-      if (t >= 1) {
-        car.mergeAge = 0;
-        car.y = car.mergeTo;
-        car.mergeCooldown =
-            std::uniform_real_distribution<float>(12, 22)(trafficRandom);
-      }
-    } else if (run.level >= 3 && car.mergeCooldown <= 0) {
-      if (!requestLaneChange(i))
-        car.mergeCooldown = 2;
-    }
-    car.x += car.speed * dt;
-    if (car.x > Width + 300) {
-      car.x = -300;
-      car.nearAwarded = false;
-    }
-    if (car.x < -300) {
-      car.x = Width + 300;
-      car.nearAwarded = false;
-    }
+  updateTraffic(dt);
+  for (auto &car : run.cars) {
     Rect box{car.x - car.width * .43f, car.y + 5, car.width * .86f, 35};
     if (box.contains(run.player, 13)) {
       hit();
@@ -266,6 +235,131 @@ void Game::update(float dt, const Controls &input) {
   if (screen == Screen::Playing)
     updateThief(dt);
 }
+namespace {
+constexpr float RoadLoop = Width + 600;
+float direction(const Car &car) { return std::signbit(car.speed) ? -1.f : 1.f; }
+float ahead(const Car &car, const Car &other) {
+  float gap =
+      std::fmod((other.x - car.x) * direction(car) + RoadLoop, RoadLoop);
+  return gap < .001f ? RoadLoop : gap;
+}
+float clearance(const Car &a, const Car &b) {
+  return (a.width + b.width) * .5f + 44;
+}
+bool followingLane(const Car &follower, const Car &leader) {
+  if (direction(follower) != direction(leader))
+    return false;
+  if (std::abs(follower.y - leader.y) < 75)
+    return true;
+  return (leader.signal > 0 || leader.mergeAge > 0) &&
+         (std::abs(follower.y - leader.mergeFrom) < 75 ||
+          std::abs(follower.y - leader.mergeTo) < 75);
+}
+} // namespace
+void Game::updateTraffic(float dt) {
+  size_t count = run.cars.size();
+  std::vector<float> desired(count), travel(count);
+  for (size_t i = 0; i < count; ++i) {
+    auto &car = run.cars[i];
+    car.previousY = car.y;
+    desired[i] = car.cruise > 0
+                     ? car.cruise * (1 + .045f * (run.level - run.shift))
+                     : std::abs(car.speed);
+    car.mergeCooldown = std::max(0.f, car.mergeCooldown - dt);
+  }
+  for (size_t i = 0; i < count; ++i) {
+    auto &car = run.cars[i];
+    bool slowerAhead = false;
+    for (size_t j = 0; j < count; ++j) {
+      if (i == j || !followingLane(car, run.cars[j]))
+        continue;
+      if (ahead(car, run.cars[j]) < 520 && desired[i] > desired[j] + 12)
+        slowerAhead = true;
+    }
+    if (car.signal > 0) {
+      car.signal = std::max(0.f, car.signal - dt);
+      if (car.signal == 0) {
+        float planned = std::min(car.mergeSpeed, std::abs(car.speed));
+        if (laneChangeClear(i, 0, planned)) {
+          car.mergeAge = .0001f;
+          car.mergeSpeed = planned;
+        } else {
+          car.mergeSpeed = 0;
+          car.mergeCooldown = 1;
+        }
+      }
+    } else if (car.mergeAge > 0) {
+      car.mergeAge += dt;
+      float t = std::min(1.f, car.mergeAge / 2.f);
+      car.y =
+          car.mergeFrom + (car.mergeTo - car.mergeFrom) * t * t * (3 - 2 * t);
+      if (t >= 1) {
+        car.mergeAge = 0;
+        car.y = car.mergeTo;
+        car.mergeCooldown =
+            std::uniform_real_distribution<float>(12, 22)(trafficRandom);
+      }
+    } else if (slowerAhead || (run.level >= 3 && car.mergeCooldown <= 0)) {
+      if (!requestLaneChange(i) && !slowerAhead)
+        car.mergeCooldown = 2;
+    }
+  }
+  // Compute following speeds from the same positions, not partially-updated
+  // cars. Brake behind slower traffic while waiting for a safe overtaking gap.
+  for (size_t i = 0; i < count; ++i) {
+    const auto &car = run.cars[i];
+    float target = desired[i];
+    for (size_t j = 0; j < count; ++j) {
+      if (i == j || !followingLane(car, run.cars[j]))
+        continue;
+      const auto &leader = run.cars[j];
+      float gap = ahead(car, leader);
+      target = std::min(
+          target,
+          std::max(0.f, std::abs(leader.speed) +
+                            (gap - clearance(car, leader) - 30.f) / .85f));
+    }
+    if ((car.signal > 0 || car.mergeAge > 0) && car.mergeSpeed > 0)
+      target = std::min(target, car.mergeSpeed);
+    float speed = std::abs(car.speed);
+    float acceleration = target > speed ? 95.f : 400.f;
+    speed += std::clamp(target - speed, -acceleration * dt, acceleration * dt);
+    travel[i] = speed * dt;
+  }
+  // Enforce a bumper gap for whole queues, including both sides of a wrap and
+  // lanes reserved by merging vehicles. Constraint relaxation handles chains.
+  for (size_t pass = 0; pass < count; ++pass) {
+    bool changed = false;
+    for (size_t i = 0; i < count; ++i)
+      for (size_t j = 0; j < count; ++j) {
+        if (i == j || !followingLane(run.cars[i], run.cars[j]))
+          continue;
+        float limit =
+            std::max(0.f, ahead(run.cars[i], run.cars[j]) -
+                              clearance(run.cars[i], run.cars[j]) + travel[j]);
+        if (travel[i] > limit) {
+          travel[i] = limit;
+          changed = true;
+        }
+      }
+    if (!changed)
+      break;
+  }
+  for (size_t i = 0; i < count; ++i) {
+    auto &car = run.cars[i];
+    float sign = direction(car);
+    car.speed = std::copysign(travel[i] / dt, sign);
+    car.x += sign * travel[i];
+    if (car.x > Width + 300) {
+      car.x -= RoadLoop;
+      car.nearAwarded = false;
+    }
+    if (car.x < -300) {
+      car.x += RoadLoop;
+      car.nearAwarded = false;
+    }
+  }
+}
 bool Game::requestLaneChange(size_t index) {
   if (index >= run.cars.size())
     return false;
@@ -276,35 +370,68 @@ bool Game::requestLaneChange(size_t index) {
       car.x > Width - 220 || std::abs(car.x - run.player.x) < 260 ||
       (std::abs(car.y - 416) > 1 && std::abs(car.y - 616) > 1))
     return false;
+  float planned = std::abs(car.speed);
+  for (size_t j = 0; j < run.cars.size(); ++j) {
+    if (j != index && followingLane(car, run.cars[j]) &&
+        ahead(car, run.cars[j]) < 650)
+      planned = std::min(planned, std::abs(run.cars[j].speed));
+  }
+  if (planned < 40 || !laneChangeClear(index, 1.2f, planned))
+    return false;
+  car.mergeSpeed = planned;
+  ++run.laneChanges;
+  car.mergeFrom = car.y;
+  car.mergeTo = car.y < 500 ? 616.f : 416.f;
+  car.signal = 1.2f;
+  car.mergeAge = 0;
+  return true;
+}
+bool Game::laneChangeClear(size_t index, float delay, float speed) const {
+  const auto &car = run.cars[index];
+  float target = car.y < 500 ? 616.f : 416.f;
+  auto inverse = [](float value) {
+    float lo = 0, hi = 1;
+    for (int i = 0; i < 22; ++i) {
+      float mid = (lo + hi) * .5f;
+      if (mid * mid * (3 - 2 * mid) < value)
+        lo = mid;
+      else
+        hi = mid;
+    }
+    return (lo + hi) * .5f;
+  };
+  auto distance = [](double delta) {
+    double d = std::fmod(std::abs(delta), double(RoadLoop));
+    return std::min(d, double(RoadLoop) - d);
+  };
   for (size_t j = 0; j < run.cars.size(); ++j) {
     if (j == index)
       continue;
     const auto &other = run.cars[j];
     if (other.signal > 0 || other.mergeAge > 0)
       return false;
-    float gap = (car.width + other.width) * .5f + 45;
-    for (int step = 0; step <= 32; ++step) {
-      float t = step * .1f;
-      float progress = std::clamp((t - 1.2f) / 2.f, 0.f, 1.f);
-      float target = car.y < 500 ? 616.f : 416.f;
-      float predictedY =
-          car.y + (target - car.y) * progress * progress * (3 - 2 * progress);
-      if (std::abs(predictedY - other.y) > 60)
-        continue;
-      float x = car.x + car.speed * t, ox = other.x + other.speed * t;
-      if (ox > Width + 300)
-        ox -= Width + 600;
-      if (ox < -300)
-        ox += Width + 600;
-      if (std::abs(x - ox) < gap)
-        return false;
-    }
+    float low = (other.y - 65 - car.y) / (target - car.y),
+          high = (other.y + 65 - car.y) / (target - car.y);
+    if (low > high)
+      std::swap(low, high);
+    if (high < 0 || low > 1)
+      continue;
+    // Exact time interval of lateral overlap under smoothstep steering.
+    // Test the entire swept interval, including screen wraps, rather than
+    // sparse samples that can miss two cars crossing between frames.
+    double begin =
+        low <= 0 ? 0 : delay + 2 * inverse(std::clamp(low, 0.f, 1.f));
+    double end =
+        high >= 1 ? delay + 2 : delay + 2 * inverse(std::clamp(high, 0.f, 1.f));
+    double relative = direction(car) * speed - other.speed;
+    double first = car.x - other.x + relative * begin,
+           last = car.x - other.x + relative * end;
+    double lo = std::min(first, last), hi = std::max(first, last);
+    double nearest = std::ceil(lo / RoadLoop) * RoadLoop;
+    double gap = nearest <= hi ? 0 : std::min(distance(first), distance(last));
+    if (gap < (car.width + other.width) * .5f + 45)
+      return false;
   }
-  ++run.laneChanges;
-  car.mergeFrom = car.y;
-  car.mergeTo = car.y < 500 ? 616.f : 416.f;
-  car.signal = 1.2f;
-  car.mergeAge = 0;
   return true;
 }
 void Game::updateThief(float dt) {

@@ -162,6 +162,120 @@ static void traffic() {
   check(g.run.cars[0].x < 0 && !g.run.cars[0].nearAwarded,
         "wrapped traffic resets close call eligibility");
 }
+static void animation() {
+  for (int facing = 0; facing < 4; ++facing) {
+    auto first = courierRunPose(facing, 0);
+    std::vector<bool> used(RunFrames, false);
+    for (int phase = 0; phase < RunFrames; ++phase) {
+      auto pose = courierRunPose(facing, phase / float(RunFrames));
+      check(pose.flip == first.flip,
+            "courier orientation stays constant for an entire cycle");
+      check(pose.index / RunFrames == first.index / RunFrames,
+            "courier never switches directional sheets mid-cycle");
+      used[pose.index % RunFrames] = true;
+    }
+    check(
+        std::all_of(used.begin(), used.end(), [](bool value) { return value; }),
+        "every original drawing is used once in a complete cycle");
+  }
+  for (int fps : {30, 60, 120}) {
+    Game g(7);
+    g.start();
+    g.run.cars.clear();
+    g.run.player = {100, 350};
+    g.run.thief.wait = 1000;
+    int previous = runFrame(g.run.animation);
+    std::vector<bool> seen(RunFrames, false);
+    for (int frame = 0; frame < fps * 3; ++frame) {
+      for (int tick = 0; tick < 120 / fps; ++tick)
+        g.update(1.f / 120, {{1, 0}, false, frame % fps == 0});
+      int current = runFrame(g.run.animation);
+      int step = (current - previous + RunFrames) % RunFrames;
+      check(step <= 1, "courier animation never skips a key drawing at "
+                       "30/60/120 FPS, including dash");
+      seen[current] = true;
+      previous = current;
+    }
+    check(
+        std::all_of(seen.begin(), seen.end(), [](bool value) { return value; }),
+        "all original courier frames appear in order");
+  }
+}
+static void carFollowing() {
+  auto car = [](float x, float y, float speed, int style = 0) {
+    Car c{x, y, speed, 170, style, false};
+    c.cruise = std::abs(speed);
+    return c;
+  };
+  auto separated = [](const Game &g) {
+    for (size_t i = 0; i < g.run.cars.size(); ++i)
+      for (size_t j = i + 1; j < g.run.cars.size(); ++j) {
+        const auto &a = g.run.cars[i], &b = g.run.cars[j];
+        if (std::abs(a.y - b.y) >= 65)
+          continue;
+        float gap = std::abs(a.x - b.x);
+        gap = std::min(gap, Width + 600 - gap);
+        if (gap < 195.8f)
+          return false;
+      }
+    return true;
+  };
+  Game blocked(4);
+  blocked.start();
+  blocked.run.player = {50, 1000};
+  blocked.run.cars = {car(500, 416, 240), car(800, 416, 150),
+                      car(500, 616, 150)};
+  for (int i = 0; i < 120 * 20; ++i) {
+    blocked.update(1.f / 120, {});
+    check(separated(blocked), "blocked faster car follows without overlapping");
+  }
+  check(blocked.run.cars[0].y == 416 &&
+            std::abs(blocked.run.cars[0].speed - 150) < 1,
+        "blocked passing lane makes faster car match its leader");
+  Game free(4);
+  free.start();
+  free.run.player = {50, 1000};
+  free.run.cars = {car(500, 416, 240), car(900, 416, 150)};
+  float follower = 500, leader = 900;
+  bool passed = false;
+  for (int i = 0; i < 120 * 20; ++i) {
+    free.update(1.f / 120, {});
+    follower += free.run.cars[0].speed / 120;
+    leader += free.run.cars[1].speed / 120;
+    check(separated(free), "overtaking car never drives through its leader");
+    if (free.run.cars[0].y == 616 && follower > leader + 196)
+      passed = true;
+  }
+  check(passed && free.run.laneChanges > 0,
+        "faster car overtakes using a free same-direction lane");
+  Game queue(5);
+  queue.start();
+  queue.run.player = {50, 1000};
+  queue.run.cars = {car(1400, 516, -300), car(1160, 516, -200),
+                    car(920, 516, -100), car(680, 516, -50)};
+  for (int i = 0; i < 120 * 45; ++i) {
+    queue.update(1.f / 120, {});
+    check(separated(queue), "left-moving queues retain gaps across road wraps");
+  }
+  for (unsigned seed = 1; seed <= 8; ++seed) {
+    Game stress(seed);
+    stress.start();
+    stress.start(true);
+    stress.start(true);
+    stress.run.player = {35, 1000};
+    for (int i = 0; i < 120 * 100; ++i) {
+      stress.update(1.f / 120, {});
+      if (!separated(stress)) {
+        std::fprintf(stderr, "OVERLAP seed=%u tick=%d\n", seed, i);
+        for (const auto &c : stress.run.cars)
+          std::fprintf(stderr, "x=%.2f y=%.2f v=%.2f signal=%.2f merge=%.2f\n",
+                       c.x, c.y, c.speed, c.signal, c.mergeAge);
+        check(false, "ordinary progressive traffic remains separated through "
+                     "merges and wraps");
+      }
+    }
+  }
+}
 static void progression() {
   Game g(13);
   g.start();
@@ -372,6 +486,10 @@ int main(int argc, char **argv) {
       model();
     else if (suite == "traffic")
       traffic();
+    else if (suite == "animation")
+      animation();
+    else if (suite == "following")
+      carFollowing();
     else if (suite == "progression")
       progression();
     else if (suite == "thief")

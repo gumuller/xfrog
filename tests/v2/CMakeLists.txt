@@ -1,6 +1,6 @@
 add_executable(xfrog-model-test model.cpp)
 target_link_libraries(xfrog-model-test PRIVATE xfrog-model)
-foreach(SUITE model profile traffic progression thief playthrough arcade)
+foreach(SUITE model profile traffic animation following progression thief playthrough arcade)
     add_test(NAME v2-${SUITE} COMMAND xfrog-model-test ${SUITE} "${CMAKE_CURRENT_BINARY_DIR}/profile-test")
     set_tests_properties(v2-${SUITE} PROPERTIES LABELS unit TIMEOUT 30)
 endforeach()

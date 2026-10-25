@@ -32,6 +32,16 @@
 - Add thief/progression regression suites, directional walk proofs, music variation
   and loop checks, and vehicle footprint assertions.
 
+### Animation and traffic corrections
+
+- Keep courier and thief artwork separate; use the courier's original eight-frame
+  cycles with corrected contact/recoil ordering and no mid-cycle flips.
+- Cap gait speed and interpolate animation phase; add five-second tick-driven
+  playback and frame-continuity checks at 30, 60 and 120 FPS.
+- Reduce the thief to the courier's 110-pixel display height.
+- Add braking, following distances and free-lane overtaking. Preserve queue gaps
+  across wraps, recheck merges, and validate whole swept paths between frames.
+
 ## 1.03 — 2026-10-25
 
 - Add a native 64-bit Linux port using SDL3 for windowing, graphics, keyboard,

@@ -34,7 +34,7 @@ public:
   ~Renderer();
   void draw(const Game &game, float elapsed, Vec mouse,
             float interpolation = 1);
-  void capture(const std::string &path);
+  void capture(const std::string &path, const SDL_Rect *area = nullptr);
   void fullscreen();
   void setVsync(bool enabled);
   std::string clicked(Vec point) const;
@@ -51,8 +51,7 @@ private:
   std::vector<unsigned char> fontData, headingData;
   std::map<int, std::unique_ptr<Font>> fonts;
   SDL_Texture *framebuffer = nullptr;
-  Image city, traffic, poses, carryPoses, courierRun, carryRun, runBetween,
-      carryBetween, thiefRun;
+  Image city, traffic, poses, carryPoses, courierRun, carryRun, thiefRun;
   float blend = 1;
   std::vector<Image *> images;
   Font &font(int size);

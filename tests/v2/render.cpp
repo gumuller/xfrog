@@ -54,21 +54,16 @@ int main(int argc, char **argv) {
       for (int facing = 0; facing < 4; ++facing) {
         std::set<uint64_t> poses;
         game.run.facing = facing;
-        for (int frame = 0; frame < 12; ++frame) {
-          game.run.animation = frame / 12.f;
+        for (int frame = 0; frame < RunFrames; ++frame) {
+          game.run.animation = frame / float(RunFrames);
           renderer.draw(game, 1, {-1, -1});
-          std::string temp = std::string(argv[2]) + "/walk-temp.bmp";
-          renderer.capture(temp);
-          SDL_Surface *full = SDL_LoadBMP(temp.c_str());
-          SDL_Surface *crop =
-              SDL_CreateSurface(160, 160, SDL_PIXELFORMAT_RGBA32);
           SDL_Rect region{880, 875, 160, 160};
-          check(full && crop && SDL_BlitSurface(full, &region, crop, nullptr),
-                "walk proof crop");
           std::string path =
               std::string(argv[2]) + "/walk-" + std::to_string(holding) + "-" +
               std::to_string(facing) + "-" + std::to_string(frame) + ".bmp";
-          check(SDL_SaveBMP(crop, path.c_str()), "walk proof saved");
+          renderer.capture(path, &region);
+          SDL_Surface *crop = SDL_LoadBMP(path.c_str());
+          check(crop && crop->w == 160 && crop->h == 160, "courier frame crop");
           uint64_t hash = 1469598103934665603ull;
           for (int y = 110; y < 150; ++y)
             for (int x = 45; x < 115; ++x) {
@@ -78,9 +73,7 @@ int main(int argc, char **argv) {
                      1099511628211ull;
             }
           poses.insert(hash);
-          SDL_DestroySurface(full);
           SDL_DestroySurface(crop);
-          std::filesystem::remove(temp);
         }
         check(poses.size() >= 5,
               "running has distinct sprite poses in every direction");
@@ -116,22 +109,12 @@ int main(int argc, char **argv) {
         for (int frame = 0; frame < 8; ++frame) {
           game.run.thief.animation = frame / 8.f;
           renderer.draw(game, 1, {-1, -1});
-          std::string temp = std::string(argv[2]) + "/thief-temp.bmp";
-          renderer.capture(temp);
-          SDL_Surface *full = SDL_LoadBMP(temp.c_str());
-          SDL_Surface *crop =
-              SDL_CreateSurface(180, 165, SDL_PIXELFORMAT_RGBA32);
           SDL_Rect region{420, 205, 180, 165};
-          check(full && crop && SDL_BlitSurface(full, &region, crop, nullptr),
-                "thief running proof crop");
           std::string path = std::string(argv[2]) + "/thief-run-" +
                              std::to_string(holding) + "-" +
                              std::to_string(direction) + "-" +
                              std::to_string(frame) + ".bmp";
-          check(SDL_SaveBMP(crop, path.c_str()), "thief run frame saved");
-          SDL_DestroySurface(full);
-          SDL_DestroySurface(crop);
-          std::filesystem::remove(temp);
+          renderer.capture(path, &region);
         }
       }
     game.run.thief.animation = 0;
@@ -159,6 +142,31 @@ int main(int argc, char **argv) {
       capture(handoff.c_str());
     }
     capture("results");
+    // Actual model ticks played at 30 Hz, not hand-picked still poses.
+    for (int holding = 0; holding < 2; ++holding) {
+      Game playback(7);
+      playback.start();
+      playback.run.cars.clear();
+      playback.run.player = playback.run.previous = {100, 350};
+      playback.run.velocity = {285, 0};
+      playback.run.carrying = holding != 0;
+      playback.run.thief.wait = 1000;
+      int last = runFrame(playback.run.animation);
+      for (int frame = 0; frame < 150; ++frame) {
+        for (int tick = 0; tick < 4; ++tick)
+          playback.update(1.f / 120, {{1, 0}, false, false});
+        int current = runFrame(playback.run.animation);
+        check((current - last + RunFrames) % RunFrames <= 1,
+              "rendered playback never skips a drawing");
+        last = current;
+        renderer.draw(playback, frame / 30.f, {-1, -1});
+        SDL_Rect region{int(playback.run.player.x) - 80, 215, 160, 155};
+        std::string path = std::string(argv[2]) + "/playback-" +
+                           std::to_string(holding) + "-" +
+                           std::to_string(frame) + ".bmp";
+        renderer.capture(path, &region);
+      }
+    }
     check(Audio::loadMusic(std::string(argv[1]) + "/town-theme.wav"),
           "stereo town score loads");
     double energy = 0;

@@ -59,13 +59,15 @@ These are future extensions, not features claimed by this build. The preserved
 1.03 implementation remains available as an optional classic target and at its
 published Git tag; the HD game is the primary 2.0 implementation on both platforms.
 
-Running retains the original broad, open-leg courier drawings and adds four
-recoil/passing poses to each direction, empty-handed and carrying a pizza.
-A chronological twelve-pose cycle replaces the small-stride mesh animation.
-The thief has eight actual running drawings per carrying state, mirrored for
-leftward travel. Whole connected sprite extraction avoids clipping wide shoes
-at grid edges. Shared row scale and head registration reduce size/position jitter.
-Idle, handoff, celebration and recovery use their existing dedicated drawings.
+Courier running uses the original eight drawings from its own directional
+and carrying sheets. Two misplaced side-view contact/recoil slots are reordered.
+Left travel mirrors the complete right-facing cycle; front and back cycles never
+flip halfway through. Separately drawn transition sheets are retained as source
+variants but are not loaded. The animation phase is interpolated and capped at
+20 drawings per second; tests check every drawing appears at 30/60/120 FPS.
+Five-second, model-ticked playback evidence covers empty-handed and pizza runs.
+The thief retains its own animation, reduced from 121 to 110 pixels to match
+the courier. No thief artwork is used to draw the courier.
 
 ## Returning challenge
 
@@ -79,7 +81,18 @@ At level 3, an eligible outer-lane car can request a lane change. The opposing
 middle lane is crossed only after checking projected positions throughout the
 3.2-second warning/maneuver interval. Changes are never initiated within 260
 horizontal pixels of the courier. Amber turn signals and a ground path warn for
-1.2 seconds; smoothstep motion takes two seconds. Only one car changes at once.
+1.2 seconds; smoothstep motion takes two seconds. Only one car changes at once. A faster car can request overtaking at any traffic
+level if a slower leader is ahead and the path is safe. Blocked cars brake and
+match their leaders. All movement is solved from the same positions, then queue
+constraints preserve at least 214 pixels between equal-sized car centers.
+Screen wrapping preserves movement overshoot rather than resetting spacing.
+
+Merge validation solves the exact lateral overlap interval of the smoothstep
+path and checks the entire relative-motion sweep on the periodic road. It is
+not based on sparse sampled points. A planned speed is held through the signal
+and merge; the path is checked again when the signal ends. Tests cover blocked
+and successful overtaking, queues in both directions, repeated road wraps and
+800 seconds of later-shift traffic across eight seeds.
 
 The thief warns for 1.5 seconds, then runs along the delivery sidewalk at y=350.
 Every appearance uses that upper sidewalk, next to the storefront addresses.
