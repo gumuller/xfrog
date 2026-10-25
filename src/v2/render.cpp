@@ -60,7 +60,8 @@ Renderer::Font &Renderer::font(int size) {
   fonts.emplace(size, std::move(value));
   return reference;
 }
-Image Renderer::image(const std::string &path, int columns, int rows) {
+Image Renderer::image(const std::string &path, int columns, int rows,
+                      bool components) {
   auto source = bytes(path);
   Image value;
   int channels = 0;
@@ -78,7 +79,94 @@ Image Renderer::image(const std::string &path, int columns, int rows) {
   }
   SDL_SetTextureBlendMode(value.texture, SDL_BLENDMODE_BLEND);
   SDL_SetTextureScaleMode(value.texture, SDL_SCALEMODE_LINEAR);
-  if (columns > 1)
+  if (components) {
+    struct Part {
+      int label, count, left, top, right, bottom;
+    };
+    std::vector<int> labels(value.width * value.height, -1), queue;
+    std::vector<Part> parts;
+    int label = 0;
+    for (int y = 0; y < value.height; ++y)
+      for (int x = 0; x < value.width; ++x) {
+        int start = y * value.width + x;
+        if (labels[start] >= 0 || pixels[start * 4 + 3] <= 32)
+          continue;
+        Part part{label, 0, x, y, x, y};
+        queue.clear();
+        queue.push_back(start);
+        labels[start] = label;
+        for (size_t at = 0; at < queue.size(); ++at) {
+          int point = queue[at], px = point % value.width,
+              py = point / value.width;
+          ++part.count;
+          part.left = std::min(part.left, px);
+          part.right = std::max(part.right, px);
+          part.top = std::min(part.top, py);
+          part.bottom = std::max(part.bottom, py);
+          for (int dy = -1; dy <= 1; ++dy)
+            for (int dx = -1; dx <= 1; ++dx) {
+              int nx = px + dx, ny = py + dy;
+              if (nx < 0 || nx >= value.width || ny < 0 || ny >= value.height)
+                continue;
+              int ni = ny * value.width + nx;
+              if (labels[ni] < 0 && pixels[ni * 4 + 3] > 32) {
+                labels[ni] = label;
+                queue.push_back(ni);
+              }
+            }
+        }
+        parts.push_back(part);
+        ++label;
+      }
+    std::sort(parts.begin(), parts.end(),
+              [](const Part &a, const Part &b) { return a.count > b.count; });
+    if (int(parts.size()) < columns * rows) {
+      stbi_image_free(pixels);
+      SDL_DestroyTexture(value.texture);
+      throw std::runtime_error("Incomplete running atlas: " + path);
+    }
+    parts.resize(columns * rows);
+    std::vector<bool> keep(label, false);
+    for (const auto &p : parts)
+      keep[p.label] = true;
+    for (int i = 0; i < value.width * value.height; ++i)
+      if (labels[i] < 0 || !keep[labels[i]])
+        pixels[i * 4 + 3] = 0;
+    // Sort by row bands, then by horizontal center. Whole connected bodies are
+    // extracted without slicing a wide running foot at a nominal grid edge.
+    std::sort(parts.begin(), parts.end(), [](const Part &a, const Part &b) {
+      return a.top + a.bottom < b.top + b.bottom;
+    });
+    for (int row = 0; row < rows; ++row) {
+      auto first = parts.begin() + row * columns, last = first + columns;
+      std::sort(first, last, [](const Part &a, const Part &b) {
+        return a.left + a.right < b.left + b.right;
+      });
+      float reference = 0;
+      for (auto it = first; it != last; ++it)
+        reference = std::max(reference, float(it->bottom - it->top + 1));
+      for (auto it = first; it != last; ++it) {
+        value.frames.push_back({float(it->left), float(it->top),
+                                float(it->right - it->left + 1),
+                                float(it->bottom - it->top + 1)});
+        value.registration.push_back(reference);
+        double sum = 0, weight = 0;
+        int headBottom = it->top + int((it->bottom - it->top + 1) * .34f);
+        for (int y = it->top; y < headBottom; ++y)
+          for (int x = it->left; x <= it->right; ++x) {
+            int at = y * value.width + x;
+            if (labels[at] == it->label) {
+              float a = pixels[at * 4 + 3] / 255.f;
+              sum += x * a;
+              weight += a;
+            }
+          }
+        value.anchors.push_back(weight > 0 ? float(sum / weight)
+                                           : float(it->left + it->right) * .5f);
+      }
+    }
+  }
+  if (columns > 1 && !components)
     for (int row = 0; row < rows; ++row)
       for (int col = 0; col < columns; ++col) {
         int x0 = col * value.width / columns,
@@ -169,7 +257,18 @@ Renderer::Renderer(const std::string &assets, bool hidden) {
   traffic = image(assets + "/traffic.png", 4, 2);
   poses = image(assets + "/poses.png", 4, 3);
   carryPoses = image(assets + "/carry-poses.png", 4, 2);
-  thief = image(assets + "/thief.png", 2, 2);
+  courierRun = image(assets + "/courier.png", 8, 4, true);
+  carryRun = image(assets + "/carry-walk.png", 8, 4, true);
+  runBetween = image(assets + "/run-inbetweens.png", 4, 4, true);
+  carryBetween = image(assets + "/carry-inbetweens.png", 4, 4, true);
+  thiefRun = image(assets + "/thief-run.png", 4, 4, true);
+  for (int state = 0; state < 2; ++state) {
+    float ref = 0;
+    for (int i = 0; i < 8; ++i)
+      ref = std::max(ref, thiefRun.frames[state * 8 + i].h);
+    for (int i = 0; i < 8; ++i)
+      thiefRun.registration[state * 8 + i] = ref;
+  }
   fontData = bytes(assets + "/Body.ttf");
   headingData = bytes(assets + "/LilitaOne.ttf");
   font(40);
@@ -196,7 +295,11 @@ Renderer::~Renderer() {
   SDL_DestroyTexture(traffic.texture);
   SDL_DestroyTexture(poses.texture);
   SDL_DestroyTexture(carryPoses.texture);
-  SDL_DestroyTexture(thief.texture);
+  SDL_DestroyTexture(courierRun.texture);
+  SDL_DestroyTexture(carryRun.texture);
+  SDL_DestroyTexture(runBetween.texture);
+  SDL_DestroyTexture(carryBetween.texture);
+  SDL_DestroyTexture(thiefRun.texture);
   SDL_DestroyTexture(framebuffer);
   SDL_DestroyRenderer(renderer);
   SDL_DestroyWindow(window);
@@ -337,65 +440,42 @@ std::string Renderer::clicked(Vec p) const {
       return it->action;
   return {};
 }
-void Renderer::actor(const Image &atlas, int index, Vec feet, float height,
-                     float phase, float stride, int facing, float alpha,
-                     float hip, bool arms) {
+void Renderer::sprite(const Image &atlas, int index, Vec feet, float height,
+                      float alpha, bool flip, bool registered) {
   const auto &src = atlas.frames[index];
-  float w = height * src.w / src.h;
-  float angle = phase * 6.2831853f, swing = std::sin(angle) * stride;
-  float bob = -std::pow(std::sin(angle), 2.f) * 1.4f * stride;
+  float scale = height / (registered ? atlas.registration[index] : src.h);
+  float w = src.w * scale, h = src.h * scale;
   ellipse({feet.x, feet.y + 3}, height * .22f, height * .065f,
           {17, 43, 50, Uint8(75 * alpha)});
-  // One continuous skin mesh: stable face and box, opposing leg strides,
-  // gentle arm swing, no independent frame resizing or torso/leg cut seams.
-  constexpr int columns = 16, rows = 36;
-  std::vector<SDL_Vertex> vertices;
-  std::vector<int> indices;
-  vertices.reserve((columns + 1) * (rows + 1));
-  indices.reserve(columns * rows * 6);
-  for (int row = 0; row <= rows; ++row)
-    for (int col = 0; col <= columns; ++col) {
-      float u = col / float(columns), v = row / float(rows);
-      float side = u < .5f ? -1.f : 1.f;
-      float separation = std::clamp(std::abs(u - .5f) * 4, 0.f, 1.f);
-      float leg = std::clamp((v - hip) / (1 - hip), 0.f, 1.f);
-      float dx =
-          side * swing * (facing % 2 ? 6.f : 1.2f) * leg * leg * separation;
-      float dy =
-          (facing % 2 ? -std::max(0.f, side * swing) * 4 : side * swing * 3) *
-          leg * separation;
-      if (arms && v > .4f && v < hip) {
-        float arm = std::clamp((std::abs(u - .5f) - .22f) * 5, 0.f, 1.f) *
-                    std::sin((v - .4f) / (hip - .4f) * 3.14159265f);
-        dx += side * swing * arm * 1.5f;
-        dy += side * swing * arm * 2.5f;
-      }
-      vertices.push_back({{feet.x + (u - .5f) * w + dx,
-                           feet.y - height + v * height + bob + dy},
-                          {1, 1, 1, alpha},
-                          {(src.x + src.w * u) / atlas.width,
-                           (src.y + src.h * v) / atlas.height}});
-      if (row < rows && col < columns) {
-        int n = row * (columns + 1) + col;
-        indices.insert(indices.end(), {n, n + 1, n + columns + 1, n + 1,
-                                       n + columns + 2, n + columns + 1});
-      }
-    }
-  SDL_SetTextureAlphaMod(atlas.texture, 255);
-  checked(SDL_RenderGeometry(renderer, atlas.texture, vertices.data(),
-                             int(vertices.size()), indices.data(),
-                             int(indices.size())));
+  SDL_SetTextureAlphaMod(atlas.texture, Uint8(255 * alpha));
+  float anchor = registered ? (atlas.anchors[index] - src.x) : src.w * .5f;
+  if (flip)
+    anchor = src.w - anchor;
+  SDL_FRect target{feet.x - anchor * scale, feet.y - h, w, h};
+  checked(SDL_RenderTextureRotated(renderer, atlas.texture, &src, &target, 0,
+                                   nullptr,
+                                   flip ? SDL_FLIP_HORIZONTAL : SDL_FLIP_NONE));
 }
 void Renderer::courierSprite(Vec feet, int facing, float frame, float height,
                              float alpha, int pose, bool holding,
                              float stride) {
-  const Image &atlas = holding ? carryPoses : poses;
-  if (pose < 0) {
-    actor(atlas, std::clamp(facing, 0, 3), feet, height, frame, stride, facing,
-          alpha, .67f, !holding);
+  if (pose >= 0) {
+    sprite(holding ? carryPoses : poses, pose, feet, height, alpha);
     return;
   }
-  actor(atlas, pose, feet, height, 0, 0, facing, alpha);
+  (void)stride;
+  // Original broad contacts plus four newly drawn recoil/passing frames.
+  // Twelve chronological key drawings per direction, without mesh distortion.
+  int phase = int(frame * 12) % 12;
+  const int sequence[12] = {0, 1, -1, -2, 2, 3, 4, 5, -3, -4, 6, 7};
+  int key = sequence[phase];
+  bool flip = (facing == 0 || facing == 2) && phase >= 6;
+  if (key >= 0)
+    sprite(holding ? carryRun : courierRun, facing * 8 + key, feet, height,
+           alpha, flip, true);
+  else
+    sprite(holding ? carryBetween : runBetween, facing * 4 + (-key - 1), feet,
+           height, alpha, flip, true);
 }
 void Renderer::balloon(Vec anchor, const std::string &title,
                        const std::string &detail, bool interact) {
@@ -489,8 +569,8 @@ void Renderer::board(const Game &game, float time) {
       if (item.index == -2) {
         const auto &t = game.run.thief;
         Vec p = t.previous * (1 - blend) + t.p * blend;
-        actor(thief, (t.hasPizza ? 2 : 0) + (t.direction < 0 ? 1 : 0), p, 121,
-              t.animation, 1, 1, 1, .57f, !t.hasPizza);
+        sprite(thiefRun, (t.hasPizza ? 8 : 0) + int(t.animation * 8) % 8, p,
+               121, 1, t.direction < 0, true);
       } else if (item.index < 0) {
         float alpha = game.run.invulnerable > 0
                           ? (.55f + .45f * std::abs(std::sin(time * 15)))

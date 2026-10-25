@@ -210,7 +210,8 @@ static void thief() {
   int hearts = g.run.hearts;
   g.run.thief.wait = .001f;
   ticks(g, 1);
-  check(g.run.thief.active && g.run.thief.warning > 1,
+  check(g.run.thief.active && g.run.thief.warning > 1 &&
+            g.run.thief.p.y == DeliverySidewalkY,
         "thief gives an advance entrance warning");
   g.pause();
   float warning = g.run.thief.warning;
@@ -219,6 +220,7 @@ static void thief() {
   g.resume();
   auto &t = g.run.thief;
   t.warning = 0;
+  g.run.player = {500, DeliverySidewalkY};
   t.p = g.run.player;
   ticks(g, 1);
   check(!g.run.carrying && t.hasPizza && g.run.stolen == 1,
@@ -227,15 +229,33 @@ static void thief() {
         "theft breaks streak without costing a heart");
   check(std::find(g.cues.begin(), g.cues.end(), Cue::Steal) != g.cues.end(),
         "theft has its own sound cue");
+  g.run.player = g.shop;
   g.interact();
+  g.run.player = t.p;
   ticks(g, 1);
   check(g.run.carrying,
         "same thief cannot steal twice while carrying stolen pizza");
   t.p.x = Width + 109;
   ticks(g, 1);
   check(!t.active && t.wait >= 9, "thief escapes and has a fair respawn delay");
-  check(t.direction < 0 && t.p.y == 350,
-        "next pass changes direction and sidewalk");
+  check(t.direction < 0 && t.p.y == DeliverySidewalkY,
+        "next pass reverses direction on delivery sidewalk");
+  Game patrol(17);
+  patrol.start();
+  patrol.run.cars.clear();
+  int appearances = 0;
+  bool wasActive = false, onSidewalk = true;
+  for (int i = 0; i < 120 * 150; ++i) {
+    patrol.update(1.f / 120, {});
+    const auto &visitor = patrol.run.thief;
+    if (visitor.active && !wasActive)
+      ++appearances;
+    wasActive = visitor.active;
+    onSidewalk = onSidewalk && visitor.p.y == DeliverySidewalkY;
+  }
+  check(appearances >= 3 && onSidewalk,
+        "every thief appearance stays beside delivery addresses across "
+        "repeated passes");
 }
 static void profile(const std::string &folder) {
   std::filesystem::create_directories(folder);

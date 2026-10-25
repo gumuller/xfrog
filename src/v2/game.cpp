@@ -317,7 +317,7 @@ void Game::updateThief(float dt) {
     thief.active = true;
     thief.hasPizza = false;
     thief.warning = 1.5f;
-    thief.p = {thief.direction > 0 ? -95.f : Width + 95, thief.p.y};
+    thief.p = {thief.direction > 0 ? -95.f : Width + 95, DeliverySidewalkY};
     thief.previous = thief.p;
     toast("PIZZA THIEF INCOMING - KEEP YOUR DISTANCE!", Coral);
   }
@@ -327,7 +327,7 @@ void Game::updateThief(float dt) {
   }
   float speed = (thief.hasPizza ? 245.f : 150.f) + 8 * run.level;
   thief.p.x += thief.direction * speed * dt;
-  thief.animation += dt * speed / 160.f;
+  thief.animation += dt * std::max(1.8f, speed / 150.f);
   if (!thief.hasPizza && run.carrying && run.invulnerable <= 0 &&
       length(run.player - thief.p) < 38) {
     thief.hasPizza = true;
@@ -342,7 +342,7 @@ void Game::updateThief(float dt) {
   if (thief.p.x > Width + 110 || thief.p.x < -110) {
     thief.active = false;
     thief.direction *= -1;
-    thief.p.y = thief.p.y > 500 ? 350.f : 665.f;
+    thief.p.y = DeliverySidewalkY;
     thief.wait = std::max(9.f, 21.f - run.level * 1.2f);
   }
 }

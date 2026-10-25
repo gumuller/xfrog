@@ -59,12 +59,13 @@ These are future extensions, not features claimed by this build. The preserved
 1.03 implementation remains available as an optional classic target and at its
 published Git tag; the HD game is the primary 2.0 implementation on both platforms.
 
-The earlier 84-frame authored courier atlases are retained as source assets.
-Walking now uses continuous mesh animation from the clean directional standing
-poses: opposing leg strides, small arm swing, subtle body bob and speed-driven
-phase. Face, clothes and box remain stable. The sprite importer retains the
-largest connected alpha component in each cell to reject isolated marks and
-neighboring frame fragments. One continuous mesh avoids cut seams.
+Running retains the original broad, open-leg courier drawings and adds four
+recoil/passing poses to each direction, empty-handed and carrying a pizza.
+A chronological twelve-pose cycle replaces the small-stride mesh animation.
+The thief has eight actual running drawings per carrying state, mirrored for
+leftward travel. Whole connected sprite extraction avoids clipping wide shoes
+at grid edges. Shared row scale and head registration reduce size/position jitter.
+Idle, handoff, celebration and recovery use their existing dedicated drawings.
 
 ## Returning challenge
 
@@ -80,8 +81,9 @@ middle lane is crossed only after checking projected positions throughout the
 horizontal pixels of the courier. Amber turn signals and a ground path warn for
 1.2 seconds; smoothstep motion takes two seconds. Only one car changes at once.
 
-The thief warns for 1.5 seconds, then crosses a sidewalk. He alternates direction
-and upper/lower sidewalks between appearances. Contact steals a carried pizza,
+The thief warns for 1.5 seconds, then runs along the delivery sidewalk at y=350.
+Every appearance uses that upper sidewalk, next to the storefront addresses.
+He alternates horizontal direction between appearances. Contact steals a carried pizza,
 breaks the streak and plays a cue without costing a heart. His carrying sprite
 shows the stolen order; he escapes faster and cannot steal again that pass.
 Pause/help freeze both thief and traffic. Later levels shorten his cooldown,

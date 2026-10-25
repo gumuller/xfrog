@@ -37,4 +37,7 @@ assert manifest["courier_grid"] == [8, 4] and manifest["traffic_grid"] == [4, 2]
 assert manifest["poses_grid"] == [4, 3]
 assert manifest["carry_walk_grid"] == [8, 4] and manifest["carry_poses_grid"] == [4, 2]
 assert manifest["thief_grid"] == [2, 2]
+assert manifest["run_inbetweens_grid"] == [4, 4]
+assert manifest["carry_inbetweens_grid"] == [4, 4]
+assert manifest["thief_run_grid"] == [4, 4]
 print("PASS: RGB city, 84-frame RGBA courier, eight RGBA vehicles, fonts and license checksums")

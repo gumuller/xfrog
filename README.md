@@ -28,10 +28,10 @@ The renderer draws to a 1920x1080 full-color framebuffer and scales to the windo
 or fullscreen display, preserving 16:9. Textures use 24-bit RGB with an additional
 alpha channel for transparency. This is new full-color artwork and rendering,
 rather than an enlarged indexed framebuffer. Keyboard movement simulates at a
-fixed 120 Hz with render interpolation. Walking uses continuous mesh animation
-from stable directional key poses, with opposite leg strides and subtle arm swing.
-The face and pizza box stay consistent while moving, without resizing or
-morphing between generated frames. Sprite loading rejects disconnected atlas
+fixed 120 Hz with render interpolation. Running uses the original wide, open-leg sprite poses with four new recoil and
+passing-leg drawings per direction: twelve key poses both empty-handed and
+carrying a pizza. The thief has a separate eight-pose run in each carrying state.
+Row-based scale and head registration keep the character stable between poses. Sprite loading rejects disconnected atlas
 marks so neighboring frames cannot produce specks above the courier's head.
 
 
@@ -75,7 +75,7 @@ the same-direction outer lanes. Projected gaps in the opposing lane and a safe
 distance from the courier are required. All vehicle classes share a 170-pixel
 collision footprint and a consistent on-screen width.
 
-The thief periodically crosses alternating sidewalks, warns before entering,
+The thief always runs along the upper sidewalk beside the delivery addresses, warns before entering,
 and can snatch a carried pizza. Theft breaks the delivery streak without taking
 a heart; the thief carries the stolen box away and cannot steal another until
 a later pass. Dash and careful spacing help avoid him.

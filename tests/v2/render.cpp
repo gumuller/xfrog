@@ -83,7 +83,7 @@ int main(int argc, char **argv) {
           std::filesystem::remove(temp);
         }
         check(poses.size() >= 5,
-              "walking has continuous visible foot motion in every direction");
+              "running has distinct sprite poses in every direction");
       }
     }
     game.run.carrying = false;
@@ -107,8 +107,35 @@ int main(int argc, char **argv) {
     capture("order");
     game.run.thief.active = true;
     game.run.thief.warning = 0;
-    game.run.thief.p = game.run.thief.previous = {510, 665};
+    game.run.thief.p = game.run.thief.previous = {510, DeliverySidewalkY};
     capture("thief");
+    for (int holding = 0; holding < 2; ++holding)
+      for (int direction = 0; direction < 2; ++direction) {
+        game.run.thief.hasPizza = holding != 0;
+        game.run.thief.direction = direction == 0 ? 1.f : -1.f;
+        for (int frame = 0; frame < 8; ++frame) {
+          game.run.thief.animation = frame / 8.f;
+          renderer.draw(game, 1, {-1, -1});
+          std::string temp = std::string(argv[2]) + "/thief-temp.bmp";
+          renderer.capture(temp);
+          SDL_Surface *full = SDL_LoadBMP(temp.c_str());
+          SDL_Surface *crop =
+              SDL_CreateSurface(180, 165, SDL_PIXELFORMAT_RGBA32);
+          SDL_Rect region{420, 205, 180, 165};
+          check(full && crop && SDL_BlitSurface(full, &region, crop, nullptr),
+                "thief running proof crop");
+          std::string path = std::string(argv[2]) + "/thief-run-" +
+                             std::to_string(holding) + "-" +
+                             std::to_string(direction) + "-" +
+                             std::to_string(frame) + ".bmp";
+          check(SDL_SaveBMP(crop, path.c_str()), "thief run frame saved");
+          SDL_DestroySurface(full);
+          SDL_DestroySurface(crop);
+          std::filesystem::remove(temp);
+        }
+      }
+    game.run.thief.animation = 0;
+    game.run.thief.direction = 1;
     game.run.thief.hasPizza = true;
     capture("thief-stolen-pizza");
     game.run.thief.active = false;

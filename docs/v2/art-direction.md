@@ -23,10 +23,9 @@ this coordinate system, so collision zones correspond to the selected artwork.
 - `assets/v2/carry-poses.png`: four holding idles (down/right/up/left) followed
   by four front-facing handoff frames. Reversed handoff frames animate pickup.
   The authored set contains 84 frames. The original walk sheets are retained
-  for reference; runtime walking now animates the clean directional standing
-  poses with one continuous mesh to keep identity and proportions stable.
+  in production; the newer in-betweens supplement the original wide strides.
 - `assets/v2/thief.png`: right/left poses, empty-handed and holding a stolen pizza.
-  Continuous mesh animation provides his sneaking walk.
+  Standing reference; the running animation now uses `thief-run.png`.
 - `assets/v2/traffic.png`: four vehicles in both directions, eight sprites total.
 - Lilita One supplies the playful headings. Atkinson Hyperlegible supplies clear
   small text. Their SIL Open Font Licenses are included beside the fonts.
@@ -183,9 +182,41 @@ text, grid lines or floating marks. The original generated alpha is preserved.
 
 ## Runtime cleanup and animation
 
-The importer keeps the largest connected alpha component inside each cell,
-rejecting detached marks and neighboring frame fragments. Walking does not
-cycle through inconsistent generated faces or scale each walking frame. A
-continuous textured mesh keeps the head and carried box stable, with opposite
-leg strides and gentle arm swing. Its phase follows distance traveled. The
-whole body is one mesh, avoiding a visible torso/leg cut seam.
+Disconnected alpha marks are rejected. Running sheets are extracted as whole
+connected sprites, preserving broad strides even if feet extend past nominal
+cell boundaries. See the current wide-stride restoration below.
+
+## Wide-stride running restoration
+
+The original broad running poses are used again. New assets, generated with the
+built-in image tool and preserved as RGBA PNGs:
+
+- `assets/v2/run-inbetweens.png`: 4x4 missing courier recoil/passing poses.
+- `assets/v2/carry-inbetweens.png`: the same 4x4 poses holding the pizza box.
+- `assets/v2/thief-run.png`: 4x4 atlas; first eight run poses empty-handed,
+  next eight holding stolen pizza. All face right and are mirrored for left.
+
+Courier prompt: preserve exact reference character, coral cap, teal jacket,
+cream shirt, navy trousers, coral shoes and tan backpack. Four columns by four
+rows, directions down/right/up/left. Columns are left-leg recoil, left-support
+passing, right-leg recoil, right-support passing. Bent knees close under hips
+and supporting foot under body; these are the missing in-betweens between the
+existing wide strides. Same head/body scale, full bodies, generous transparent
+margins, no text, marks or shadows.
+
+Carrying edit prompt: preserve that exact 4x4 atlas, all poses, legs, identity and
+transparency; add the closed cream pizza box with coral emblem held in both
+hands, matching the original carry atlas. Back view box visible beyond shoulders.
+
+Thief prompt: preserve the purple cap, eye mask, striped shirt, plum trousers,
+brown shoes and face. Eight chronological running poses alternating wide open
+leg contacts, down/recoil, bent passing legs, knee drive, then opposite-leg
+versions. Empty-handed followed by pizza-carrying. Relayout to four columns and
+four rows, same scale, full shoes and limbs in every sprite, transparent gutters,
+no labels or shadows.
+
+Whole connected-body extraction replaces nominal grid cuts for running sheets,
+so the widest feet remain intact. Rows share a reference scale and heads are
+registered horizontally. The courier plays twelve chronological key drawings
+per direction; the thief plays eight per carrying state. No small-stride mesh
+animation is used for running.

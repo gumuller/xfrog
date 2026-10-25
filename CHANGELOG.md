@@ -18,8 +18,10 @@
 
 ### Playtest revisions
 
-- Replace uneven generated walk frames with continuous directional mesh animation,
-  stable faces/boxes, opposing leg strides and subtle arm swing.
+- Restore the original wide-stride running sprites, adding four recoil/passing
+  drawings per courier direction and a dedicated eight-pose thief run.
+- Keep all thief appearances on the delivery-address sidewalk, with a repeated
+  patrol regression test.
 - Remove disconnected atlas fragments and avoid torso/leg seams.
 - Replace the short chiptune with a 184.6-second stereo, sampled-console-style
   arrangement, contrasting themes and quiet bridge; add cashier delivery audio.

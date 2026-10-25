@@ -19,6 +19,7 @@ struct Image {
   SDL_Texture *texture = nullptr;
   int width = 0, height = 0;
   std::vector<SDL_FRect> frames;
+  std::vector<float> registration, anchors;
 };
 struct Button {
   Rect rect;
@@ -50,19 +51,20 @@ private:
   std::vector<unsigned char> fontData, headingData;
   std::map<int, std::unique_ptr<Font>> fonts;
   SDL_Texture *framebuffer = nullptr;
-  Image city, traffic, poses, carryPoses, thief;
+  Image city, traffic, poses, carryPoses, courierRun, carryRun, runBetween,
+      carryBetween, thiefRun;
   float blend = 1;
   std::vector<Image *> images;
   Font &font(int size);
-  Image image(const std::string &path, int columns = 1, int rows = 1);
+  Image image(const std::string &path, int columns = 1, int rows = 1,
+              bool components = false);
   void picture(const Image &img, Rect target, const SDL_FRect *source = nullptr,
                float alpha = 1);
   void courierSprite(Vec feet, int facing, float frame, float height = 110,
                      float alpha = 1, int pose = -1, bool holding = false,
                      float stride = 1);
-  void actor(const Image &atlas, int index, Vec feet, float height, float phase,
-             float stride, int facing, float alpha = 1, float hip = .67f,
-             bool arms = true);
+  void sprite(const Image &atlas, int index, Vec feet, float height,
+              float alpha = 1, bool flip = false, bool registered = false);
   void balloon(Vec anchor, const std::string &title, const std::string &detail,
                bool interact = false);
   void vehicle(const Car &car, float time);

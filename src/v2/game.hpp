@@ -8,6 +8,7 @@
 #include <vector>
 namespace xfrog {
 constexpr float Width = 1920, Height = 1080;
+constexpr float DeliverySidewalkY = 350;
 constexpr const char *Version = "2.0.0";
 struct Vec {
   float x = 0, y = 0;
@@ -48,7 +49,7 @@ struct Car {
         mergeCooldown = 8, previousY = 0;
 };
 struct Thief {
-  Vec p{-120, 665}, previous{-120, 665};
+  Vec p{-120, DeliverySidewalkY}, previous{-120, DeliverySidewalkY};
   float wait = 12, warning = 0, direction = 1, animation = 0;
   bool active = false, hasPizza = false;
 };

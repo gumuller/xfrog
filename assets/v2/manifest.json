@@ -68,6 +68,24 @@
       "sample_rate": 32000,
       "channels": 2,
       "duration_seconds": 184.6153846153846
+    },
+    "run-inbetweens.png": {
+      "sha256": "5a7f0d10a11df01cb198d37800c42c3b6fbfa3cc9caf59f088474f7bbc304005",
+      "width": 1262,
+      "height": 1246,
+      "color_type": 6
+    },
+    "carry-inbetweens.png": {
+      "sha256": "c62f9c000d87938cf9f06e8fc02cc86d5bde5acf6b3309db51288fec221ba64a",
+      "width": 1262,
+      "height": 1246,
+      "color_type": 6
+    },
+    "thief-run.png": {
+      "sha256": "c8552915b69777441369b4c250bf3596e3f90930990fd8e1c20aba06d59c5e7a",
+      "width": 1312,
+      "height": 1199,
+      "color_type": 6
     }
   },
   "poses_grid": [
@@ -85,5 +103,17 @@
   "thief_grid": [
     2,
     2
+  ],
+  "run_inbetweens_grid": [
+    4,
+    4
+  ],
+  "carry_inbetweens_grid": [
+    4,
+    4
+  ],
+  "thief_run_grid": [
+    4,
+    4
   ]
 }
