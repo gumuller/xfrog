@@ -12,6 +12,9 @@ add_test(NAME v2-hd-renderer COMMAND xfrog-render-test "$<TARGET_FILE_DIR:xfrog>
 add_test(NAME v2-startup COMMAND xfrog --smoke-test)
 set_tests_properties(v2-hd-renderer v2-startup PROPERTIES LABELS integration TIMEOUT 90
     ENVIRONMENT "SDL_VIDEODRIVER=dummy;SDL_AUDIODRIVER=dummy;XDG_DATA_HOME=${CMAKE_BINARY_DIR}/test-data")
+# Capture every interpolated pose in all directions/states, including software
+# rendering in unoptimized Windows and sanitizer configurations.
+set_tests_properties(v2-hd-renderer PROPERTIES TIMEOUT 180)
 option(XFROG_ENABLE_E2E "Run the normal HD game through a virtual display and OS input" OFF)
 if(XFROG_ENABLE_E2E AND NOT WIN32)
     find_package(Python3 COMPONENTS Interpreter REQUIRED)

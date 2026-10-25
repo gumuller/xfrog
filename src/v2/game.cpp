@@ -208,9 +208,11 @@ void Game::update(float dt, const Controls &input) {
     run.player.y = next.y;
   else
     run.velocity.y = 0;
-  if (length(run.velocity) > 20)
+  if (length(run.velocity) > 20) {
     run.animation +=
         dt * std::min(20.f, 14.4f * length(run.velocity) / 285.f) / RunFrames;
+    run.animation -= std::floor(run.animation);
+  }
   if (input.interact)
     interact();
   updateTraffic(dt);

@@ -59,15 +59,23 @@ These are future extensions, not features claimed by this build. The preserved
 1.03 implementation remains available as an optional classic target and at its
 published Git tag; the HD game is the primary 2.0 implementation on both platforms.
 
-Courier running uses the original eight drawings from its own directional
-and carrying sheets. Two misplaced side-view contact/recoil slots are reordered.
-Left travel mirrors the complete right-facing cycle; front and back cycles never
-flip halfway through. Separately drawn transition sheets are retained as source
-variants but are not loaded. The animation phase is interpolated and capped at
-20 drawings per second; tests check every drawing appears at 30/60/120 FPS.
-Five-second, model-ticked playback evidence covers empty-handed and pizza runs.
-The thief retains its own animation, reduced from 121 to 110 pixels to match
-the courier. No thief artwork is used to draw the courier.
+Courier running uses only its original directional and carrying sheets.
+Redundant contact drawings are removed from the loop: side views use contact,
+down and passing on each step; front/back use the two opposite contacts.
+Measured bidirectional motion supplies 96 cached samples per loop, warping the
+original drawings into alignment before a brief handover between them. Left travel
+mirrors the whole right cycle. Thief artwork is never used for the courier.
+
+The model clock stays in [0, 1), with explicit wrap-aware render interpolation.
+Walking runs at 1.8 cycles per second, with a 2.5-cycle dash cap. Tests cover
+30/60/120 FPS, all 96 rendered samples in four directions with/without pizza,
+exact closure at phase 1, and pixel changes across the last-to-first transition.
+Five-second model-ticked playback also exercises repeated real-time loops.
+
+Both gameplay characters use the same 88-pixel height, a 20% reduction from 110.
+The thief keeps its original eight-pose animation and sidewalk behavior. Courier
+idle, pickup, handoff, hit reaction, celebration, shadows and dash trails use the
+reduced size too. The menu illustration retains its independent layout size.
 
 ## Returning challenge
 

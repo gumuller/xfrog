@@ -22,6 +22,30 @@ static std::vector<unsigned char> bytes(const std::string &path) {
     throw std::runtime_error("Missing asset: " + path);
   return std::vector<unsigned char>((std::istreambuf_iterator<char>(file)), {});
 }
+static std::vector<Vec> motionData(const std::string &path) {
+  auto data = bytes(path);
+  constexpr size_t Nodes = 3 * CourierKeys * 2 * 64 * 64;
+  if (data.size() != 28 + Nodes * 4 ||
+      std::string(data.begin(), data.begin() + 8) != "XFMOTION")
+    throw std::runtime_error("Invalid courier motion data: " + path);
+  const unsigned expected[] = {64, CourierKeys, 3, 200, 230};
+  for (int i = 0; i < 5; ++i) {
+    size_t at = 8 + i * 4;
+    unsigned value = data[at] | (unsigned(data[at + 1]) << 8) |
+                     (unsigned(data[at + 2]) << 16) |
+                     (unsigned(data[at + 3]) << 24);
+    if (value != expected[i])
+      throw std::runtime_error("Unsupported courier motion data: " + path);
+  }
+  auto component = [&](size_t at) {
+    int value = data[at] | (int(data[at + 1]) << 8);
+    return (value >= 32768 ? value - 65536 : value) / 256.f;
+  };
+  std::vector<Vec> result(Nodes);
+  for (size_t i = 0; i < Nodes; ++i)
+    result[i] = {component(28 + i * 4), component(30 + i * 4)};
+  return result;
+}
 struct Renderer::Font {
   SDL_Texture *texture = nullptr;
   stbtt_bakedchar chars[96]{};
@@ -235,6 +259,8 @@ Image Renderer::image(const std::string &path, int columns, int rows,
       }
   bool uploaded =
       SDL_UpdateTexture(value.texture, nullptr, pixels, value.width * 4);
+  if (components)
+    value.pixels.assign(pixels, pixels + value.width * value.height * 4);
   stbi_image_free(pixels);
   checked(uploaded);
   return value;
@@ -259,6 +285,8 @@ Renderer::Renderer(const std::string &assets, bool hidden) {
   carryPoses = image(assets + "/carry-poses.png", 4, 2);
   courierRun = image(assets + "/courier.png", 8, 4, true);
   carryRun = image(assets + "/carry-walk.png", 8, 4, true);
+  courierMotion = motionData(assets + "/courier.motion");
+  carryMotion = motionData(assets + "/carry-walk.motion");
   thiefRun = image(assets + "/thief-run.png", 4, 4, true);
   for (int state = 0; state < 2; ++state) {
     float ref = 0;
@@ -288,6 +316,8 @@ Renderer::Renderer(const std::string &assets, bool hidden) {
   }
 }
 Renderer::~Renderer() {
+  for (auto &entry : courierFrames)
+    SDL_DestroyTexture(entry.second);
   fonts.clear();
   SDL_DestroyTexture(city.texture);
   SDL_DestroyTexture(traffic.texture);
@@ -460,11 +490,107 @@ void Renderer::courierSprite(Vec feet, int facing, float frame, float height,
     return;
   }
   (void)stride;
-  // One original courier sheet per direction and carrying state. The left
-  // view mirrors the complete right-facing cycle, never half of a cycle.
-  auto key = courierRunPose(facing, frame);
-  sprite(holding ? carryRun : courierRun, key.index, feet, height, alpha,
-         key.flip, true);
+  movingCourier(feet, facing, frame, height, alpha, holding);
+}
+void Renderer::movingCourier(Vec feet, int facing, float cycle, float height,
+                             float alpha, bool holding) {
+  int row = facing == 3 ? 1 : std::clamp(facing, 0, 2);
+  int sample = courierSample(cycle);
+  int id = (int(holding) * 3 + row) * CourierSamples + sample;
+  auto found = courierFrames.find(id);
+  SDL_Texture *texture;
+  if (found == courierFrames.end()) {
+    const auto &atlas = holding ? carryRun : courierRun;
+    const auto &motion = holding ? carryMotion : courierMotion;
+    float phase = sample * float(courierKeyCount(row)) / CourierSamples;
+    int key = int(phase);
+    float fraction = phase - key;
+    const int drawings[] = {courierKey(row, key), courierKey(row, key + 1)};
+    auto displacement = [&](Vec p, int half) {
+      float x = std::clamp(p.x * 63 / 255, 0.f, 63.f);
+      float y = std::clamp(p.y * 63 / 255, 0.f, 63.f);
+      int ix = std::min(62, int(x)), iy = std::min(62, int(y));
+      x -= ix;
+      y -= iy;
+      size_t base =
+          ((row * CourierKeys + key) * 2 + half) * 64 * 64 + iy * 64 + ix;
+      return motion[base] * ((1 - x) * (1 - y)) +
+             motion[base + 1] * (x * (1 - y)) +
+             motion[base + 64] * ((1 - x) * y) + motion[base + 65] * (x * y);
+    };
+    auto pixel = [&](Vec p, int half) {
+      int drawing = drawings[half];
+      const auto &rect = atlas.frames[drawing];
+      float scale = atlas.registration[drawing] / 200;
+      float x = (p.x - 128) * scale + atlas.anchors[drawing];
+      float y = (p.y - 230) * scale + rect.y + rect.h;
+      std::array<float, 4> color{};
+      int ix = int(std::floor(x)), iy = int(std::floor(y));
+      x -= ix;
+      y -= iy;
+      for (int dy = 0; dy < 2; ++dy)
+        for (int dx = 0; dx < 2; ++dx) {
+          int sx = ix + dx, sy = iy + dy;
+          if (sx < rect.x || sy < rect.y || sx >= rect.x + rect.w ||
+              sy >= rect.y + rect.h)
+            continue;
+          float weight = (dx ? x : 1 - x) * (dy ? y : 1 - y);
+          const auto *value = &atlas.pixels[(sy * atlas.width + sx) * 4];
+          float a = value[3] / 255.f * weight;
+          for (int c = 0; c < 3; ++c)
+            color[c] += value[c] * a;
+          color[3] += a;
+        }
+      return color;
+    };
+    std::vector<unsigned char> rgba(128 * 128 * 4);
+    for (int y = 0; y < 128; ++y)
+      for (int x = 0; x < 128; ++x) {
+        Vec p{x * 2.f + .5f, y * 2.f + .5f};
+        std::array<float, 4> color{};
+        for (int half = 0; half < 2; ++half) {
+          float distance = half == 0 ? fraction : 1 - fraction;
+          float mix = std::clamp((fraction - .25f) * 2, 0.f, 1.f);
+          mix = mix * mix * (3 - 2 * mix);
+          float weight = half == 0 ? 1 - mix : mix;
+          if (weight <= 0)
+            continue;
+          Vec source = p;
+          // Invert measured motion before the brief handover between drawings.
+          // Bilinear sampling and the handover use premultiplied alpha so the
+          // aligned silhouette stays opaque and its edges stay clean.
+          for (int iteration = 0; iteration < 5; ++iteration)
+            source = source * .35f +
+                     (p - displacement(source, half) * distance) * .65f;
+          auto value = pixel(source, half);
+          for (int c = 0; c < 4; ++c)
+            color[c] += value[c] * weight;
+        }
+        auto *out = &rgba[(y * 128 + x) * 4];
+        if (color[3] > .001f) {
+          for (int c = 0; c < 3; ++c)
+            out[c] = Uint8(std::clamp(color[c] / color[3], 0.f, 255.f));
+          out[3] = Uint8(std::clamp(color[3] * 255, 0.f, 255.f));
+        }
+      }
+    texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA32,
+                                SDL_TEXTUREACCESS_STATIC, 128, 128);
+    checked(texture);
+    checked(SDL_UpdateTexture(texture, nullptr, rgba.data(), 128 * 4));
+    SDL_SetTextureBlendMode(texture, SDL_BLENDMODE_BLEND);
+    SDL_SetTextureScaleMode(texture, SDL_SCALEMODE_LINEAR);
+    courierFrames.emplace(id, texture);
+  } else {
+    texture = found->second;
+  }
+  ellipse({feet.x, feet.y + 3}, height * .22f, height * .065f,
+          {17, 43, 50, Uint8(75 * alpha)});
+  SDL_SetTextureAlphaMod(texture, Uint8(255 * alpha));
+  SDL_FRect target{feet.x - height * .64f, feet.y - height * 1.15f,
+                   height * 1.28f, height * 1.28f};
+  checked(SDL_RenderTextureRotated(
+      renderer, texture, nullptr, &target, 0, nullptr,
+      facing == 3 ? SDL_FLIP_HORIZONTAL : SDL_FLIP_NONE));
 }
 void Renderer::balloon(Vec anchor, const std::string &title,
                        const std::string &detail, bool interact) {
@@ -523,8 +649,8 @@ void Renderer::vehicle(const Car &car, float time) {
 }
 void Renderer::board(const Game &game, float time) {
   Vec feet = game.run.previous * (1 - blend) + game.run.player * blend;
-  float animation =
-      game.run.previousAnimation * (1 - blend) + game.run.animation * blend;
+  float animation = courierCycleBetween(game.run.previousAnimation,
+                                        game.run.animation, blend);
   picture(city, {0, 0, Width, Height});
   if (game.screen != Screen::Menu) {
     Vec destination =
@@ -560,8 +686,8 @@ void Renderer::board(const Game &game, float time) {
       if (item.index == -2) {
         const auto &t = game.run.thief;
         Vec p = t.previous * (1 - blend) + t.p * blend;
-        sprite(thiefRun, (t.hasPizza ? 8 : 0) + runFrame(t.animation), p, 110,
-               1, t.direction < 0, true);
+        sprite(thiefRun, (t.hasPizza ? 8 : 0) + runFrame(t.animation), p,
+               CharacterHeight, 1, t.direction < 0, true);
       } else if (item.index < 0) {
         float alpha = game.run.invulnerable > 0
                           ? (.55f + .45f * std::abs(std::sin(time * 15)))
@@ -569,7 +695,7 @@ void Renderer::board(const Game &game, float time) {
         if (game.run.dashTime > 0) {
           for (int n = 3; n > 0; --n)
             courierSprite(feet - game.run.velocity * (n * .018f),
-                          game.run.facing, animation, 110, .13f, -1,
+                          game.run.facing, animation, CharacterHeight, .13f, -1,
                           game.run.carrying);
         }
         int pose = -1;
@@ -592,8 +718,8 @@ void Renderer::board(const Game &game, float time) {
                        : game.run.facing;
           }
         }
-        courierSprite(feet, game.run.facing, animation, 110, alpha, pose,
-                      holding,
+        courierSprite(feet, game.run.facing, animation, CharacterHeight, alpha,
+                      pose, holding,
                       std::min(1.f, length(game.run.velocity) / 160.f));
       } else {
         Car car = game.run.cars[item.index];

@@ -42,6 +42,16 @@
 - Add braking, following distances and free-lane overtaking. Preserve queue gaps
   across wraps, recheck merges, and validate whole swept paths between frames.
 
+### Loop continuity and character scale
+
+- Remove repeated end/contact poses and interpolate the original courier artwork
+  through 96 samples per cycle, including its last-to-first transition.
+- Keep the gait clock bounded and interpolate forward across phase zero.
+- Reduce both gameplay characters from 110 to 88 pixels (20%), including courier
+  reactions and dash trails; preserve the thief's animation.
+- Validate every rendered sample in all four directions with and without pizza,
+  exact loop closure, source-art/motion-data checksums, and repeated live loops.
+
 ## 1.03 — 2026-10-25
 
 - Add a native 64-bit Linux port using SDL3 for windowing, graphics, keyboard,

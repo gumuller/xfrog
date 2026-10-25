@@ -223,11 +223,31 @@ animation is used for running.
 
 ## Current courier playback correction
 
-The courier uses only `courier.png` and `carry-walk.png` when running. The
-in-between sheets above are retained as earlier source variants and are not
-loaded. The side-view contact and recoil slots are reordered, with one coherent
-sheet and orientation per cycle. Left travel mirrors the whole right cycle;
-there is no front/back mid-cycle mirroring. Idle/reaction art is unchanged.
-The thief still uses only `thief-run.png`, now rendered at 110 pixels high.
-No artwork files changed in this correction. Discarded generation experiments
-were not copied into the repository or used in the game.
+Running still uses only `courier.png` and `carry-walk.png`; no PNG artwork changed.
+The historical in-between sheets are retained but not loaded. The thief uses
+only `thief-run.png`, with its animation unchanged. Both gameplay characters are
+rendered at 88 pixels, including courier idle/reaction poses and dash trails.
+
+`courier.motion` and `carry-walk.motion` contain measured displacement vectors
+between selected original poses. `scripts/analyze_courier_motion.py` analyzes the
+original alpha components at their registered scale and head anchor, with shoe
+landmarks constrained to exclude the red pizza-box emblem. It writes numeric
+motion data only; it does not edit or export artwork. The manifest binds each
+motion file to the SHA-256 of its source PNG. Regeneration requires the pinned
+authoring dependencies in the script's docstring; the shipped game needs none
+of them.
+
+The renderer samples the original drawings along the measured motion at
+96 phases per cycle, aligning their outlines before a brief handover between
+poses. Samples are cached with a finite 6 x 96 texture limit. Side travel
+uses six contact/down/passing keys; front and back use two opposite contacts
+without lingering on redundant drawings. The last transition is sampled exactly
+like every other transition, and the simulation clock wraps with explicit
+forward interpolation. No half-cycle flipping or thief-reference artwork is used.
+
+A skeletal-motion experiment and a generated 16-pose courier reference failed
+visual review and were discarded. Neither is shipped. The generated trial used
+the built-in imagegen tool with `courier.png` alone as its identity reference;
+its brief requested a 4x4 right-facing run cycle with alternating contact,
+recoil, passing and knee-drive poses, the original outfit/proportions and genuine
+transparency. The selected implementation preserves the original artwork.

@@ -4,6 +4,7 @@
 #include <filesystem>
 #include <fstream>
 #include <limits>
+#include <set>
 #include <stdexcept>
 using namespace xfrog;
 static int assertions = 0;
@@ -163,20 +164,26 @@ static void traffic() {
         "wrapped traffic resets close call eligibility");
 }
 static void animation() {
-  for (int facing = 0; facing < 4; ++facing) {
-    auto first = courierRunPose(facing, 0);
-    std::vector<bool> used(RunFrames, false);
-    for (int phase = 0; phase < RunFrames; ++phase) {
-      auto pose = courierRunPose(facing, phase / float(RunFrames));
-      check(pose.flip == first.flip,
-            "courier orientation stays constant for an entire cycle");
-      check(pose.index / RunFrames == first.index / RunFrames,
-            "courier never switches directional sheets mid-cycle");
-      used[pose.index % RunFrames] = true;
+  check(courierSample(.9999f) == CourierSamples - 1 && courierSample(1.f) == 0,
+        "courier loop wraps directly from final sample to first");
+  check(
+      std::abs(courierCycleBetween(.99f, .01f, .5f)) < .0001f,
+      "render interpolation crosses the loop seam without reversing the gait");
+  check(courierCycleBetween(.99f, .01f, .25f) > .99f &&
+            courierCycleBetween(.99f, .01f, .75f) < .01f,
+        "rendered phase advances monotonically through wraparound");
+  for (int row = 0; row < 3; ++row) {
+    std::set<int> keys;
+    for (int key = 0; key < courierKeyCount(row); ++key) {
+      int drawing = courierKey(row, key);
+      check(drawing / RunFrames == row,
+            "courier keeps its own directional artwork throughout the loop");
+      keys.insert(drawing);
     }
-    check(
-        std::all_of(used.begin(), used.end(), [](bool value) { return value; }),
-        "every original drawing is used once in a complete cycle");
+    check(int(keys.size()) == courierKeyCount(row),
+          "contact and passing keys do not repeat");
+    check(courierKey(row, courierKeyCount(row)) == courierKey(row, 0),
+          "final transition returns to the same first drawing");
   }
   for (int fps : {30, 60, 120}) {
     Game g(7);
@@ -184,21 +191,23 @@ static void animation() {
     g.run.cars.clear();
     g.run.player = {100, 350};
     g.run.thief.wait = 1000;
-    int previous = runFrame(g.run.animation);
-    std::vector<bool> seen(RunFrames, false);
+    int previous = courierSample(g.run.animation);
+    int loops = 0;
     for (int frame = 0; frame < fps * 3; ++frame) {
       for (int tick = 0; tick < 120 / fps; ++tick)
         g.update(1.f / 120, {{1, 0}, false, frame % fps == 0});
-      int current = runFrame(g.run.animation);
-      int step = (current - previous + RunFrames) % RunFrames;
-      check(step <= 1, "courier animation never skips a key drawing at "
-                       "30/60/120 FPS, including dash");
-      seen[current] = true;
+      int current = courierSample(g.run.animation);
+      int step = (current - previous + CourierSamples) % CourierSamples;
+      check(step <= int(std::ceil(2.5f * CourierSamples / fps)),
+            "walk and dash maintain frame pacing at 30/60/120 FPS");
+      check(g.run.animation >= 0 && g.run.animation < 1,
+            "animation clock stays bounded without losing long-session "
+            "precision");
+      if (current < previous)
+        ++loops;
       previous = current;
     }
-    check(
-        std::all_of(seen.begin(), seen.end(), [](bool value) { return value; }),
-        "all original courier frames appear in order");
+    check(loops >= 4, "playback checks several actual loop boundaries");
   }
 }
 static void carFollowing() {

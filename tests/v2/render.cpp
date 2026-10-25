@@ -53,9 +53,17 @@ int main(int argc, char **argv) {
       game.run.velocity = {285, 0};
       for (int facing = 0; facing < 4; ++facing) {
         std::set<uint64_t> poses;
+        std::vector<unsigned char> first, previous;
+        double largestStep = 0;
+        auto difference = [](const auto &a, const auto &b) {
+          double sum = 0;
+          for (size_t i = 0; i < a.size(); ++i)
+            sum += std::abs(int(a[i]) - int(b[i]));
+          return sum / a.size();
+        };
         game.run.facing = facing;
-        for (int frame = 0; frame < RunFrames; ++frame) {
-          game.run.animation = frame / float(RunFrames);
+        for (int frame = 0; frame <= CourierSamples; ++frame) {
+          game.run.animation = frame / float(CourierSamples);
           renderer.draw(game, 1, {-1, -1});
           SDL_Rect region{880, 875, 160, 160};
           std::string path =
@@ -65,18 +73,40 @@ int main(int argc, char **argv) {
           SDL_Surface *crop = SDL_LoadBMP(path.c_str());
           check(crop && crop->w == 160 && crop->h == 160, "courier frame crop");
           uint64_t hash = 1469598103934665603ull;
-          for (int y = 110; y < 150; ++y)
-            for (int x = 45; x < 115; ++x) {
+          std::vector<unsigned char> pixels;
+          for (int y = 45; y < 150; ++y)
+            for (int x = 25; x < 135; ++x) {
               Uint8 r, g, b, a;
               SDL_ReadSurfacePixel(crop, x, y, &r, &g, &b, &a);
               hash = (hash ^ (uint32_t(r) << 16 | uint32_t(g) << 8 | b)) *
                      1099511628211ull;
+              pixels.insert(pixels.end(), {r, g, b});
             }
+          if (frame == 0)
+            first = pixels;
+          else if (frame < CourierSamples) {
+            double step = difference(previous, pixels);
+            check(step > .001,
+                  "no consecutive courier samples hold the same pose");
+            largestStep = std::max(largestStep, step);
+          } else {
+            check(pixels == first,
+                  "complete loop returns to identical rendered pose");
+            double seam = difference(previous, pixels);
+            check(seam > .005 && seam <= largestStep * 1.25 + .01,
+                  "last-to-first transition moves smoothly without a held pose "
+                  "or jump");
+            printf("Loop %d/%d: %zu unique samples, seam %.3f, largest "
+                   "interior %.3f\n",
+                   holding, facing, poses.size(), seam, largestStep);
+          }
+          previous = std::move(pixels);
           poses.insert(hash);
           SDL_DestroySurface(crop);
         }
-        check(poses.size() >= 5,
-              "running has distinct sprite poses in every direction");
+        check(poses.size() >= CourierSamples * 3 / 4,
+              "courier has continuous in-betweens in every "
+              "direction and carrying state");
       }
     }
     game.run.carrying = false;
@@ -102,6 +132,16 @@ int main(int argc, char **argv) {
     game.run.thief.warning = 0;
     game.run.thief.p = game.run.thief.previous = {510, DeliverySidewalkY};
     capture("thief");
+    {
+      Game scale = game;
+      scale.run.player = scale.run.previous = {900, DeliverySidewalkY};
+      scale.run.facing = 1;
+      scale.run.velocity = {285, 0};
+      scale.run.carrying = false;
+      scale.run.thief.p = scale.run.thief.previous = {1100, DeliverySidewalkY};
+      renderer.draw(scale, 1, {-1, -1});
+      renderer.capture(std::string(argv[2]) + "/character-scale.bmp");
+    }
     for (int holding = 0; holding < 2; ++holding)
       for (int direction = 0; direction < 2; ++direction) {
         game.run.thief.hasPizza = holding != 0;

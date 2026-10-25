@@ -86,6 +86,14 @@
       "width": 1312,
       "height": 1199,
       "color_type": 6
+    },
+    "courier.motion": {
+      "sha256": "96df4c496dd5e1ecf17ee20667cb25f730c859d436707f49ec5a00c6fa69dad8",
+      "source_sha256": "44524626ccfa21048f6859a3263b8901f84a3313708980119f0a86afb4ebdda2"
+    },
+    "carry-walk.motion": {
+      "sha256": "5ffd6a32fd461a45c012778f63ab5958f10a98921c2f7f16bfae3842d455d953",
+      "source_sha256": "fe016b921492b7dea5cfad86755ec0eba55efcc7bec376931fd3183599f6431b"
     }
   },
   "poses_grid": [

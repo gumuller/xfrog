@@ -28,11 +28,12 @@ The renderer draws to a 1920x1080 full-color framebuffer and scales to the windo
 or fullscreen display, preserving 16:9. Textures use 24-bit RGB with an additional
 alpha channel for transparency. This is new full-color artwork and rendering,
 rather than an enlarged indexed framebuffer. Keyboard movement simulates at a
-fixed 120 Hz with render interpolation. Courier animation uses only its original
-courier sheets, with corrected contact/recoil ordering, consistent orientation
-throughout each loop, and evenly paced eight-frame cycles. Gait speed is capped
-at 20 drawings per second so dashing does not skip poses at 30+ FPS. The thief
-keeps its separate eight-pose animation, sized to match the courier at 110 pixels.
+fixed 120 Hz with render interpolation. Courier animation uses its original artwork with measured motion between
+contact/passing poses and 96 cached samples per loop. The clock wraps without
+reversing render interpolation or repeating the end pose. The thief keeps its
+separate eight-pose animation. Both characters are 88 pixels high in gameplay,
+20% smaller than the previous 110-pixel presentation, including reactions and
+courier dash trails.
 Sprite loading rejects detached atlas marks and preserves broad running feet.
 
 
