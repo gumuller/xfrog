@@ -1,0 +1,43 @@
+{
+  "artwork_tool": "built-in image_gen",
+  "courier_grid": [
+    8,
+    4
+  ],
+  "traffic_grid": [
+    4,
+    2
+  ],
+  "files": {
+    "Body.ttf": {
+      "sha256": "7fb917c89019896d0b52ee84b7cbb3304c18cb90b19a62f5e32712bd23e97669"
+    },
+    "LilitaOne.ttf": {
+      "sha256": "f5b641c45c69d772ee4eda687bc9fda411d5cad6b0b45371491da4580cbc8d59"
+    },
+    "body-font-LICENSE.txt": {
+      "sha256": "f32d22b3908fcad2c86a74000614ec22e6a7f66ea7e867e616026a27aebdc143"
+    },
+    "city.png": {
+      "sha256": "f13461f54ff669ad08a0f5ce8f039b681328d97a690aacb00d49944aed7d611b",
+      "width": 1672,
+      "height": 941,
+      "color_type": 2
+    },
+    "courier.png": {
+      "sha256": "44524626ccfa21048f6859a3263b8901f84a3313708980119f0a86afb4ebdda2",
+      "width": 1774,
+      "height": 887,
+      "color_type": 6
+    },
+    "heading-font-LICENSE.txt": {
+      "sha256": "255d5debbb80eb2ea762644311f266a279e8778f00156655a516e2b7781a63e1"
+    },
+    "traffic.png": {
+      "sha256": "36dcf2feb7df0c0efd1c000c131decaebc5bfc88f672a30ae644502e7ce8b45a",
+      "width": 1774,
+      "height": 887,
+      "color_type": 6
+    }
+  }
+}

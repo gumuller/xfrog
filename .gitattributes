@@ -1,5 +1,8 @@
-# Preserve the recovered release bytes, including original line endings.
-* -text
-
-# Treat the preserved Windows line endings correctly during whitespace checks.
-* whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol
+*.sh text eol=lf
+assets/v2/*.png binary
+assets/v2/*.ttf binary
+assets/v2/manifest.json text eol=lf
+# Keep upstream license bytes stable for cross-platform asset checksums.
+assets/v2/*LICENSE.txt text eol=lf -whitespace
+vendor/*LICENSE.txt text eol=lf -whitespace
+vendor/*.h text eol=lf

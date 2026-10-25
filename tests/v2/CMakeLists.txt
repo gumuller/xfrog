@@ -1,0 +1,32 @@
+add_executable(xfrog-model-test model.cpp)
+target_link_libraries(xfrog-model-test PRIVATE xfrog-model)
+foreach(SUITE model profile traffic playthrough arcade)
+    add_test(NAME v2-${SUITE} COMMAND xfrog-model-test ${SUITE} "${CMAKE_CURRENT_BINARY_DIR}/profile-test")
+    set_tests_properties(v2-${SUITE} PROPERTIES LABELS unit TIMEOUT 30)
+endforeach()
+add_executable(xfrog-render-test render.cpp)
+target_link_libraries(xfrog-render-test PRIVATE xfrog-presentation)
+add_dependencies(xfrog-render-test xfrog-assets)
+file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/render-evidence")
+add_test(NAME v2-hd-renderer COMMAND xfrog-render-test "$<TARGET_FILE_DIR:xfrog>/assets/v2" "${CMAKE_BINARY_DIR}/render-evidence")
+add_test(NAME v2-startup COMMAND xfrog --smoke-test)
+set_tests_properties(v2-hd-renderer v2-startup PROPERTIES LABELS integration TIMEOUT 30
+    ENVIRONMENT "SDL_VIDEODRIVER=dummy;SDL_AUDIODRIVER=dummy;XDG_DATA_HOME=${CMAKE_BINARY_DIR}/test-data")
+option(XFROG_ENABLE_E2E "Run the normal HD game through a virtual display and OS input" OFF)
+if(XFROG_ENABLE_E2E AND NOT WIN32)
+    find_package(Python3 COMPONENTS Interpreter REQUIRED)
+    find_program(XFROG_XVFB Xvfb REQUIRED)
+    find_program(XFROG_XDOTOOL xdotool REQUIRED)
+    find_program(XFROG_CAPTURE import REQUIRED)
+    find_program(XFROG_OCR tesseract REQUIRED)
+    add_test(NAME v2-executable-e2e COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/e2e.py"
+        --game "$<TARGET_FILE:xfrog>" --xvfb "${XFROG_XVFB}" --xdotool "${XFROG_XDOTOOL}"
+        --capture "${XFROG_CAPTURE}" --ocr "${XFROG_OCR}" --artifacts "${CMAKE_BINARY_DIR}/e2e-artifacts")
+    add_test(NAME v2-delivery-e2e COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/e2e.py"
+        --delivery --game "$<TARGET_FILE:xfrog>" --xvfb "${XFROG_XVFB}" --xdotool "${XFROG_XDOTOOL}"
+        --capture "${XFROG_CAPTURE}" --ocr "${XFROG_OCR}" --artifacts "${CMAKE_BINARY_DIR}/delivery-evidence")
+    set_tests_properties(v2-executable-e2e v2-delivery-e2e PROPERTIES LABELS e2e TIMEOUT 120 RUN_SERIAL TRUE)
+endif()
+find_package(Python3 COMPONENTS Interpreter REQUIRED)
+add_test(NAME v2-asset-contract COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/assets.py" "${PROJECT_SOURCE_DIR}/assets/v2")
+set_tests_properties(v2-asset-contract PROPERTIES LABELS unit TIMEOUT 20)

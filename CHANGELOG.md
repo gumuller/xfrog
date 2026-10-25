@@ -1,5 +1,19 @@
 # Changelog
 
+## 2.0.0 — HD reimagining
+
+- Replace the indexed primary renderer with a shared SDL3 full-color 1080p
+  widescreen implementation on Linux and Windows.
+- Add consistent cartoon city artwork, 32 directional courier frames, eight
+  vehicles, scalable typography, alpha sprites, shadows, particles and dash trails.
+- Add heat-dependent tips, delivery streaks, successive shifts, relaxed/arcade
+  difficulty, dash cooldowns and forgiving feet/bumper collision bounds.
+- Add a complete menu/help/pause/results flow, mouse and gamepad support, original
+  synthesized music/cues, focus pause and recoverable per-user progress.
+- Add HD asset/render contracts, whole-shift simulations, independent GUI E2E
+  checks and a real delivery through live traffic using ordinary OS input.
+- Preserve the original implementation as an optional classic target.
+
 ## 1.03 — 2026-10-25
 
 - Add a native 64-bit Linux port using SDL3 for windowing, graphics, keyboard,

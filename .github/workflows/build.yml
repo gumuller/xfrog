@@ -1,7 +1,7 @@
 name: Build and test
 on:
   push:
-    branches: [main]
+    branches: [main, feature/xfrog-2]
   pull_request:
   workflow_dispatch:
 permissions:
@@ -17,10 +17,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Install executable E2E test tools
-        run: sudo apt-get update && sudo apt-get install -y xvfb xdotool imagemagick
+        run: sudo apt-get update && sudo apt-get install -y xvfb xdotool imagemagick tesseract-ocr
       - uses: libsdl-org/setup-sdl@main
         with:
-          version: 3-latest
+          version: 3.4.18
           install-linux-dependencies: true
       - name: Configure
         run: cmake --preset ${{ matrix.preset }}
@@ -35,6 +35,8 @@ jobs:
           name: test-evidence-${{ matrix.preset }}
           path: |
             build/${{ matrix.preset }}/e2e-artifacts/
+            build/${{ matrix.preset }}/render-evidence/
+            build/${{ matrix.preset }}/delivery-evidence/
             build/${{ matrix.preset }}/Testing/Temporary/
       - name: Package Linux release runtime
         if: matrix.preset == 'linux-tests'
@@ -53,8 +55,10 @@ jobs:
         configuration: [Release, Debug]
     steps:
       - uses: actions/checkout@v4
-      - name: Build Windows DirectX backend
-        run: ./build.ps1 -Configuration ${{ matrix.configuration }} -WithDDrawCompat
+      - name: Build Windows HD game and tests
+        run: ./build.ps1 -Configuration ${{ matrix.configuration }}
+      - name: Run Windows model and render tests
+        run: ctest --test-dir build/windows-x86 -C ${{ matrix.configuration }} --output-on-failure
       - name: Package Windows release runtime
         if: matrix.configuration == 'Release'
         run: python scripts/package_release.py --platform windows --input build/windows-x86/bin/Release --output build/packages

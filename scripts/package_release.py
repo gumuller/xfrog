@@ -12,9 +12,9 @@ import shutil
 def package(platform, source, destination, version):
     suffix = "linux-x86_64" if platform == "linux" else "windows-x86"
     name = f"xfrog-{version}-{suffix}"
-    files = ["xfrog" if platform == "linux" else "xfrog.exe", "xfrog.cfs", "COPYING.txt"]
-    if platform == "windows":
-        files += ["hs.dat", "zlib-LICENSE.txt", "ddraw.dll", "DDrawCompat-LICENSE.txt"]
+    files = ["xfrog" if platform == "linux" else "xfrog.exe", "COPYING.txt", "stb-LICENSE.txt", "SDL-LICENSE.txt"]
+    if not (source / "assets/v2").is_dir():
+        raise FileNotFoundError(source / "assets/v2")
     for filename in files:
         if not (source / filename).is_file():
             raise FileNotFoundError(source / filename)
@@ -24,26 +24,26 @@ def package(platform, source, destination, version):
         root.mkdir()
         for filename in files:
             shutil.copy2(source / filename, root / filename)
+        shutil.copytree(source / "assets/v2", root / "assets/v2")
         if platform == "linux":
             (root / "xfrog").chmod(0o755)
             (root / "Play.sh").write_text('#!/bin/sh\nset -eu\ncd -- "$(dirname -- "$0")"\nexec ./xfrog "$@"\n')
             (root / "Play.sh").chmod(0o755)
-            instructions = """Native Linux x86_64 build. Requires SDL3 >= 3.2, zlib, and a C++ runtime.
-On Arch/Omarchy: sudo pacman -S --needed sdl3 zlib
+            instructions = """Native Linux x86_64 build. Requires SDL3 >= 3.2 and a C++ runtime.
+On Arch/Omarchy: sudo pacman -S --needed sdl3
 Built on Ubuntu 24.04; other distributions need compatible runtime libraries.
 Extract the whole archive and run ./Play.sh (no compiler is needed).
 High scores use SDL's user data directory, separate from the installation.
 """
         else:
-            instructions = """Windows x86 build with statically linked zlib and Visual C++ runtime.
+            instructions = """Windows x86 build with statically linked SDL3 and Visual C++ runtime.
 Extract the whole archive and run xfrog.exe from this folder.
-The pinned DDrawCompat v0.7.2 wrapper is included beside the executable for
-modern Windows compatibility. Keep its license with the archive.
-High scores are stored in hs.dat beside the executable.
+No DirectDraw wrapper or extra runtime DLLs are required.
+Progress is saved in the per-user Xfrog 2 data directory.
 """
         (root / "README.txt").write_text(f"Xfrog {version}\n\n" + instructions + """
-Controls: arrows to move, Space to continue/deliver, Escape for the menu.
-Linux fullscreen: F11 or Alt+Enter.
+Controls: arrows/WASD move, Space picks up/delivers, Shift dashes.
+Escape pauses, H opens help, M toggles sound. F11 or Alt+Enter is fullscreen.
 Source and GPL license: https://github.com/gumuller/xfrog
 """)
         if platform == "linux":
@@ -53,8 +53,9 @@ Source and GPL license: https://github.com/gumuller/xfrog
         else:
             result = destination / (name + ".zip")
             with zipfile.ZipFile(result, "w", zipfile.ZIP_DEFLATED) as archive:
-                for path in sorted(root.iterdir()):
-                    archive.write(path, f"{name}/{path.name}")
+                for path in sorted(root.rglob("*")):
+                    if path.is_file():
+                        archive.write(path, f"{name}/{path.relative_to(root).as_posix()}")
     return result
 
 
@@ -64,8 +65,8 @@ def main():
     parser.add_argument("--input", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
-    version_header = Path(__file__).resolve().parents[1] / "src/game/src/version.h"
-    version = re.search(r'#define\s+XFROG_VERSION\s+"([^"]+)"', version_header.read_text()).group(1)
+    version_header = Path(__file__).resolve().parents[1] / "src/v2/game.hpp"
+    version = re.search(r'Version\s*=\s*"([^"]+)"', version_header.read_text()).group(1)
     print(package(args.platform, args.input, args.output, version))
 
 
