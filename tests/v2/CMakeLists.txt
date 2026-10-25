@@ -30,3 +30,8 @@ endif()
 find_package(Python3 COMPONENTS Interpreter REQUIRED)
 add_test(NAME v2-asset-contract COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/assets.py" "${PROJECT_SOURCE_DIR}/assets/v2")
 set_tests_properties(v2-asset-contract PROPERTIES LABELS unit TIMEOUT 20)
+
+add_executable(xfrog-audio-test audio.cpp)
+target_link_libraries(xfrog-audio-test PRIVATE xfrog-presentation)
+add_test(NAME v2-chiptune-audio COMMAND xfrog-audio-test "${CMAKE_BINARY_DIR}/render-evidence/pizza-run-theme.wav")
+set_tests_properties(v2-chiptune-audio PROPERTIES LABELS unit TIMEOUT 30)

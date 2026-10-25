@@ -85,6 +85,8 @@ void Game::interact() {
     if (run.target >= last)
       ++run.target;
     run.carrying = true;
+    run.pickup = .32f;
+    run.handoff = 0;
     run.heat = 1;
     cues.push_back(Cue::Pickup);
     toast("HOT PIZZA. GO GO GO!", Gold);
@@ -94,6 +96,8 @@ void Game::interact() {
     run.score += 100 + tip;
     ++run.delivered;
     run.celebration = .8f;
+    run.handoff = .36f;
+    run.pickup = 0;
     ++run.combo;
     run.bestCombo = std::max(run.bestCombo, run.combo);
     run.carrying = false;
@@ -111,11 +115,13 @@ void Game::hit() {
     return;
   --run.hearts;
   run.carrying = false;
+  run.pickup = run.handoff = 0;
   run.combo = 0;
   run.invulnerable = 2;
   run.dashTime = 0;
   run.velocity = {};
   run.player = shop;
+  run.previous = shop;
   run.shake = .4f;
   cues.push_back(Cue::Hit);
   toast("OUCH! TAKE A BREATHER.", Coral);
@@ -125,6 +131,7 @@ void Game::hit() {
 }
 void Game::finish(bool won) {
   run.won = won;
+  run.velocity = {};
   screen = Screen::Results;
   profile.best = std::max(profile.best, run.score);
   if (won)
@@ -134,14 +141,14 @@ void Game::update(float dt, const Controls &input) {
   if (!std::isfinite(dt) || dt <= 0)
     return;
   dt = std::min(dt, .05f);
-  if (screen != Screen::Playing)
+  if (screen != Screen::Playing && screen != Screen::Results)
+    return;
+  updateVisuals(dt);
+  if (screen == Screen::Results)
     return;
   run.previous = run.player;
   run.time = std::max(0.f, run.time - dt);
   run.elapsed += dt;
-  run.invulnerable = std::max(0.f, run.invulnerable - dt);
-  run.shake = std::max(0.f, run.shake - dt);
-  run.celebration = std::max(0.f, run.celebration - dt);
   run.dashCooldown = std::max(0.f, run.dashCooldown - dt);
   if (run.time <= 0) {
     finish(false);
@@ -151,6 +158,7 @@ void Game::update(float dt, const Controls &input) {
     run.heat -= dt / (profile.difficulty == Difficulty::Relaxed ? 45.f : 30.f);
     if (run.heat <= 0) {
       run.carrying = false;
+      run.pickup = run.handoff = 0;
       run.combo = 0;
       run.score = std::max(0, run.score - 25);
       cues.push_back(Cue::Expired);
@@ -220,6 +228,13 @@ void Game::update(float dt, const Controls &input) {
       cues.push_back(Cue::NearMiss);
     }
   }
+}
+void Game::updateVisuals(float dt) {
+  run.invulnerable = std::max(0.f, run.invulnerable - dt);
+  run.shake = std::max(0.f, run.shake - dt);
+  run.celebration = std::max(0.f, run.celebration - dt);
+  run.pickup = std::max(0.f, run.pickup - dt);
+  run.handoff = std::max(0.f, run.handoff - dt);
   for (auto &p : particles) {
     p.life -= dt;
     p.p = p.p + p.v * dt;

@@ -127,6 +127,8 @@ Renderer::Renderer(const std::string &assets, bool hidden) {
   courier = image(assets + "/courier.png", 8, 4);
   traffic = image(assets + "/traffic.png", 4, 2);
   poses = image(assets + "/poses.png", 4, 3);
+  carryWalk = image(assets + "/carry-walk.png", 8, 4);
+  carryPoses = image(assets + "/carry-poses.png", 4, 2);
   fontData = bytes(assets + "/Body.ttf");
   headingData = bytes(assets + "/LilitaOne.ttf");
   font(40);
@@ -153,6 +155,8 @@ Renderer::~Renderer() {
   SDL_DestroyTexture(courier.texture);
   SDL_DestroyTexture(traffic.texture);
   SDL_DestroyTexture(poses.texture);
+  SDL_DestroyTexture(carryWalk.texture);
+  SDL_DestroyTexture(carryPoses.texture);
   SDL_DestroyTexture(framebuffer);
   SDL_DestroyRenderer(renderer);
   SDL_DestroyWindow(window);
@@ -294,9 +298,10 @@ std::string Renderer::clicked(Vec p) const {
   return {};
 }
 void Renderer::courierSprite(Vec feet, int facing, float frame, float height,
-                             float alpha, int pose) {
+                             float alpha, int pose, bool holding) {
   int index = std::clamp(facing, 0, 3) * 8 + (int(frame) % 8);
-  const Image &atlas = pose >= 0 ? poses : courier;
+  const Image &atlas = holding ? (pose >= 0 ? carryPoses : carryWalk)
+                               : (pose >= 0 ? poses : courier);
   const auto &src = atlas.frames[pose >= 0 ? pose : index];
   float w = height * src.w / src.h;
   ellipse({feet.x, feet.y + 3}, height * .22f, height * .065f,
@@ -313,6 +318,7 @@ void Renderer::vehicle(const Car &car, float time) {
           &src);
 }
 void Renderer::board(const Game &game, float time) {
+  Vec feet = game.run.previous * (1 - blend) + game.run.player * blend;
   picture(city, {0, 0, Width, Height});
   if (game.screen != Screen::Menu) {
     Vec destination =
@@ -331,8 +337,7 @@ void Renderer::board(const Game &game, float time) {
     }
     if (game.run.carrying) {
       float alpha = .65f + .35f * std::sin(time * 3);
-      ellipse({game.run.player.x, game.run.player.y + 2}, 30, 10,
-              {255, 207, 93, Uint8(100 * alpha)});
+      ellipse({feet.x, feet.y + 2}, 30, 10, {255, 207, 93, Uint8(100 * alpha)});
     }
     // Sort foot positions so the courier can pass both behind and in front of
     // cars.
@@ -343,7 +348,7 @@ void Renderer::board(const Game &game, float time) {
     std::vector<DrawItem> order;
     for (size_t i = 0; i < game.run.cars.size(); ++i)
       order.push_back({game.run.cars[i].y + 40, int(i)});
-    order.push_back({game.run.player.y, -1});
+    order.push_back({feet.y, -1});
     std::sort(order.begin(), order.end(),
               [](DrawItem a, DrawItem b) { return a.y < b.y; });
     for (auto item : order)
@@ -353,20 +358,37 @@ void Renderer::board(const Game &game, float time) {
                           : 1;
         if (game.run.dashTime > 0) {
           for (int n = 3; n > 0; --n)
-            courierSprite(game.run.player - game.run.velocity * (n * .018f),
-                          game.run.facing, game.run.animation, 110, .13f);
+            courierSprite(feet - game.run.velocity * (n * .018f),
+                          game.run.facing, game.run.animation, 110, .13f, -1,
+                          game.run.carrying);
         }
         int pose = -1;
-        if (game.run.invulnerable > 1.6f)
+        bool holding = game.run.carrying;
+        if (game.run.invulnerable > 1.6f) {
+          holding = false;
           pose = 8 + std::min(3, int((2 - game.run.invulnerable) * 10));
-        else if (length(game.run.velocity) < 20)
-          pose = game.run.celebration > 0
-                     ? 4 + std::min(3, int((.8f - game.run.celebration) * 5))
-                     : game.run.facing;
-        courierSprite(game.run.player, game.run.facing, game.run.animation, 110,
-                      alpha, pose);
-      } else
-        vehicle(game.run.cars[item.index], time);
+        } else if (length(game.run.velocity) < 20) {
+          if (game.run.handoff > 0) {
+            holding = true;
+            pose = 4 + std::clamp(int((.36f - game.run.handoff) / .09f), 0, 3);
+          } else if (game.run.pickup > 0) {
+            pose = 7 - std::clamp(int((.32f - game.run.pickup) / .08f), 0, 3);
+          } else if (holding) {
+            pose = game.run.facing;
+          } else {
+            pose = game.run.celebration > 0
+                       ? 4 + std::clamp(int((.44f - game.run.celebration) * 9),
+                                        0, 3)
+                       : game.run.facing;
+          }
+        }
+        courierSprite(feet, game.run.facing, game.run.animation, 110, alpha,
+                      pose, holding);
+      } else {
+        Car car = game.run.cars[item.index];
+        car.x -= car.speed * ((1 - blend) / 120.f);
+        vehicle(car, time);
+      }
     for (const auto &p : game.particles)
       ellipse(
           p.p, p.size, p.size,
@@ -535,7 +557,10 @@ void Renderer::overlay(const Game &game, Vec mouse) {
     button("BACK TO MENU", {625, 825, 670, 66}, "menu", mouse);
   }
 }
-void Renderer::draw(const Game &game, float elapsed, Vec mouse) {
+void Renderer::draw(const Game &game, float elapsed, Vec mouse,
+                    float interpolation) {
+  blend =
+      game.screen == Screen::Playing ? std::clamp(interpolation, 0.f, 1.f) : 1;
   buttons.clear();
   checked(SDL_SetRenderTarget(renderer, framebuffer));
   SDL_SetRenderDrawColor(renderer, 13, 34, 45, 255);

@@ -9,7 +9,7 @@ return for the next order. Finish six deliveries to clear the first shift;
 subsequent shifts increase the delivery goal and traffic speed.
 
 The movement simulation runs at a fixed 120 Hz. Acceleration is responsive,
-diagonal speed is normalized, and the short dash has a visible cooldown. Dash
+render positions interpolate between simulation ticks, diagonal speed is normalized, and the short dash has a visible cooldown. Dash
 is a movement tool, not invulnerability. A collision drops the pizza, breaks the
 streak, costs one heart, and returns the courier to safety with a grace period.
 Collision uses feet/bumper bounds instead of the painted roofs of the vehicles.
@@ -25,7 +25,10 @@ The map, characters, traffic, typography and effects share one palette. The HUD
 keeps the objective, order destination, heat, time, score, hearts and dash charge
 visible. Help and pause freeze simulation and sound; losing window focus pauses
 automatically. Mouse buttons, arrows/WASD, and common gamepad actions are supported.
-Music and sound effects are an original synthesized score and cues, with a
+Music is an original eight-bar, 132 BPM chiptune using a band-limited pulse lead,
+fast arpeggio, triangle bass and clocked-noise drums. Eight renewed effects
+distinguish pickup, delivery, hit, dash, close call, expired order, win and UI.
+All are synthesized locally and need no external recordings. There is a
 persistent sound toggle. Records, delivery totals and settings use a separate
 per-user profile, with atomic writes and backup recovery.
 
@@ -53,3 +56,9 @@ per-user profile, with atomic writes and backup recovery.
 These are future extensions, not features claimed by this build. The preserved
 1.03 implementation remains available as an optional classic target and at its
 published Git tag; the HD game is the primary 2.0 implementation on both platforms.
+
+The courier has 32 empty-handed walking frames, 32 pizza-carrying walking frames,
+eight directional standing poses, four pickup/handoff frames, four celebration
+frames and four recovery frames. Pizza boxes remain visible during carrying
+walks, idles and dash trails. Pickup/handoff never lock player input. Finishing
+a shift freezes gameplay while letting handoff, celebration and particles finish.

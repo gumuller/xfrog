@@ -220,7 +220,7 @@ int main(int argc, char **argv) {
                    game.screen == Screen::Paused || game.screen == Screen::Help,
                    game.cues);
       game.cues.clear();
-      renderer.draw(game, elapsed, mouse);
+      renderer.draw(game, elapsed, mouse, float(accumulator * 120));
       ++frames;
       if (smoke && frames >= 120) {
         const char *capture = SDL_getenv("XFROG_SCREENSHOT");

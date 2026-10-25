@@ -44,10 +44,30 @@
       "width": 1448,
       "height": 1086,
       "color_type": 6
+    },
+    "carry-walk.png": {
+      "sha256": "fe016b921492b7dea5cfad86755ec0eba55efcc7bec376931fd3183599f6431b",
+      "width": 1774,
+      "height": 887,
+      "color_type": 6
+    },
+    "carry-poses.png": {
+      "sha256": "efb09f69d1515340261f6cd12081a729b4aaf78e373bb46890d1673a3720c0bc",
+      "width": 1774,
+      "height": 887,
+      "color_type": 6
     }
   },
   "poses_grid": [
     4,
     3
+  ],
+  "carry_walk_grid": [
+    8,
+    4
+  ],
+  "carry_poses_grid": [
+    4,
+    2
   ]
 }

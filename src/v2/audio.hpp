@@ -10,6 +10,8 @@ public:
   ~Audio();
   void update(bool enabled, bool paused, const std::vector<Cue> &cues);
   static float musicSample(uint64_t sample);
+  static float soundSample(Cue cue, uint64_t sample);
+  static int soundSamples(Cue cue);
 
 private:
   struct Voice {

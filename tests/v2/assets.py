@@ -29,4 +29,5 @@ for name, expected in manifest["files"].items():
         assert data[:4] in (b"\x00\x01\x00\x00", b"OTTO"), "invalid font"
 assert manifest["courier_grid"] == [8, 4] and manifest["traffic_grid"] == [4, 2]
 assert manifest["poses_grid"] == [4, 3]
-print("PASS: RGB city, 44-frame RGBA courier, eight RGBA vehicles, fonts and license checksums")
+assert manifest["carry_walk_grid"] == [8, 4] and manifest["carry_poses_grid"] == [4, 2]
+print("PASS: RGB city, 84-frame RGBA courier, eight RGBA vehicles, fonts and license checksums")

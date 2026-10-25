@@ -25,11 +25,17 @@ static void model() {
   check(g.canInteract(), "spawn is in pickup range");
   g.interact();
   check(g.run.carrying && g.run.heat == 1, "pickup assigns fresh pizza");
+  check(g.run.pickup > 0, "pickup starts visible box collection");
+  ticks(g, 40);
+  check(g.run.pickup == 0 && g.run.carrying,
+        "pickup settles into holding idle");
+  g.run.heat = 1;
   int target = g.run.target;
   g.run.player = g.doors[target];
   g.interact();
   check(!g.run.carrying && g.run.score == 170 && g.run.combo == 1,
         "hot delivery scores base plus tip");
+  check(g.run.handoff > 0 && g.run.pickup == 0, "delivery starts box handoff");
   g.run.player = g.shop;
   g.interact();
   check(g.run.target != target, "consecutive delivery targets differ");
@@ -92,6 +98,12 @@ static void model() {
   check(g.screen == Screen::Results && g.run.won,
         "delivery goal completes shift");
   check(g.profile.best >= g.run.score, "record updates on success");
+  check(g.run.handoff > 0, "winning delivery retains its handoff");
+  float resultTime = g.run.time;
+  ticks(g, 120);
+  check(g.run.handoff == 0 && g.run.celebration == 0 && g.particles.empty(),
+        "results finish visual animation without freezing sprites");
+  check(g.run.time == resultTime, "results freeze gameplay clock");
   int shift = g.run.shift;
   g.start(true);
   check(g.run.shift == shift + 1 && g.run.goal == 8,

@@ -17,7 +17,12 @@ this coordinate system, so collision zones correspond to the selected artwork.
   inside their own grid cells and aligned at the feet.
 - `assets/v2/poses.png`: four directional idle poses, four celebration frames and
   four harmless dizzy reaction frames. The same courier identity was used as an
-  image reference, bringing the complete character set to 44 frames.
+  image reference.
+- `assets/v2/carry-walk.png`: 32 matching walking frames holding a cream pizza
+  box with a coral badge in both hands, in the same down/right/up/left row order.
+- `assets/v2/carry-poses.png`: four holding idles (down/right/up/left) followed
+  by four front-facing handoff frames. Reversed handoff frames animate pickup.
+  The complete character set contains 84 frames.
 - `assets/v2/traffic.png`: four vehicles in both directions, eight sprites total.
 - Lilita One supplies the playful headings. Atkinson Hyperlegible supplies clear
   small text. Their SIL Open Font Licenses are included beside the fonts.
@@ -131,3 +136,30 @@ frames. Production clean isolated sprites with genuine transparent alpha
 background, generous transparent gutters. No floor, shadows, scenery, labels,
 words, text, grid lines or watermarks. This is a NEW atlas to complement the
 existing 32-frame walking atlas, not a replacement for it.
+
+## Pizza-carrying atlas production prompts
+
+Built-in image_gen was used with transparent backgrounds and the existing
+courier/pose atlases as visual identity references. Final selected PNGs are
+`assets/v2/carry-walk.png` and `assets/v2/carry-poses.png`; their original alpha
+is preserved. Discarded drafts are not shipped.
+
+Carry walk spec: identity-preserve / stylized-concept. Match the existing courier
+exactly: coral cap, curly dark hair, teal jacket, cream shirt, navy trousers,
+coral sneakers, tan backpack, warm cartoon shading and dark teal outlines.
+Produce an exact 8-column by 4-row transparent atlas, 32 complete walking frames.
+Rows face down, right, up and left. Every frame holds the same closed cream
+pizza box with coral emblem horizontally in both hands; box remains visible
+in the back-facing row beyond the shoulders. Consistent body scale and foot
+baseline, generous gutters, full body in every cell, no backgrounds or labels.
+
+Carry pose spec: identity-preserve. Match that character and box exactly in an
+exact 4-column by 2-row transparent atlas. Top row: four grounded standing poses
+holding the box, facing down, right, up away from camera, left. Bottom row:
+four front-facing handoff frames: box at chest, arms extend halfway, box fully
+offered, then empty hands after delivery. Preserve consistent silhouette, outfit,
+lighting and baseline. Full bodies, no cropping, shadows, text or grid lines.
+
+Targeted correction: change only the third sprite in the top row to face UP
+away from camera, with backpack visible and pizza box held beyond the shoulders.
+Preserve the other seven sprites and transparency unchanged.

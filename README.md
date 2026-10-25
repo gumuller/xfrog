@@ -2,8 +2,8 @@
 
 A full-color, widescreen reimagining of Gustavo Simi Muller's original pizza
 courier arcade game. Deliver hot pizzas across Frog City's traffic in a sunny
-cartoon town, with a new 44-frame courier, eight frog-driven vehicles, responsive
-movement, original music, and a complete shift-based game loop.
+cartoon town, with a new 84-frame courier, eight frog-driven vehicles, responsive
+movement, original 8-bit chiptune music, and a complete shift-based game loop.
 
 ## Play on Linux
 
@@ -27,7 +27,9 @@ The renderer draws to a 1920x1080 full-color framebuffer and scales to the windo
 or fullscreen display, preserving 16:9. Textures use 24-bit RGB with an additional
 alpha channel for transparency. This is new full-color artwork and rendering,
 rather than an enlarged indexed framebuffer. Keyboard movement simulates at a
-fixed 120 Hz, with eight animation frames in each of four directions.
+fixed 120 Hz with render interpolation, with eight walking frames per direction
+both empty-handed and holding a pizza. Directional standing, pickup, handoff,
+celebration and recovery poses complete the 84-frame character set.
 
 ## Play on Windows
 
@@ -86,7 +88,8 @@ Automated playthroughs drive ordinary controls across live traffic through whole
 shifts. Renderer tests draw menu, gameplay, order, pause, help and results scenes,
 check full HD output and thousands of distinct colors, and verify bounded music.
 The asset contract checks actual RGB/RGBA PNGs, transparent atlases, fonts and
-checksums.
+checksums. A separate audio suite checks the full original 132 BPM theme for
+clipping and DC bias, checks eight distinct effects, and exports a playable WAV.
 
 For independent executable E2E tests, install the virtual display, OS input,
 image capture and OCR tools:

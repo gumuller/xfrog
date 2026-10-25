@@ -2,8 +2,8 @@
 #include "render.hpp"
 #include "audio.hpp"
 #define SDL_MAIN_HANDLED
-#include <SDL3/SDL_main.h>
 #include <SDL3/SDL.h>
+#include <SDL3/SDL_main.h>
 #include <cmath>
 #include <cstdio>
 #include <filesystem>
@@ -49,6 +49,20 @@ int main(int argc, char **argv) {
     game.start();
     capture("gameplay");
     game.interact();
+    capture("pickup");
+    game.run.pickup = 0;
+    for (int facing = 0; facing < 4; ++facing) {
+      game.run.facing = facing;
+      game.run.velocity = {};
+      std::string idle = "carrying-idle-" + std::to_string(facing);
+      capture(idle.c_str());
+      game.run.velocity = {100, 0};
+      for (int frame = 0; frame < 8; ++frame) {
+        game.run.animation = float(frame);
+        renderer.draw(game, 1, {-1, -1}, .5f);
+      }
+    }
+    game.run.velocity = {};
     capture("order");
     game.pause();
     capture("pause");
@@ -59,6 +73,11 @@ int main(int argc, char **argv) {
     game.run.delivered = game.run.goal - 1;
     game.run.player = game.doors[game.run.target];
     game.interact();
+    for (int frame = 0; frame < 4; ++frame) {
+      game.run.handoff = .36f - frame * .09f;
+      std::string handoff = "handoff-" + std::to_string(frame);
+      capture(handoff.c_str());
+    }
     capture("results");
     double energy = 0;
     float peak = 0;
@@ -74,7 +93,8 @@ int main(int argc, char **argv) {
     audio.update(true, false, {Cue::Pickup, Cue::Deliver, Cue::Win});
     audio.update(false, false, {});
     audio.update(true, true, {});
-    puts("PASS: six HD scenes, true-color rendering, sprite atlases, UI hit "
+    puts("PASS: HD scenes and 84 character frames, true-color rendering, "
+         "sprite atlases, UI hit "
          "targets and bounded original audio");
   } catch (const std::exception &e) {
     fprintf(stderr, "FAIL: %s\n", e.what());
