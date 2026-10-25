@@ -536,6 +536,8 @@ void Renderer::board(const Game &game, float time) {
           p.p, p.size, p.size,
           rgb(p.color, Uint8(255 * std::clamp(p.life / p.total, 0.f, 1.f))));
     for (const auto &f : game.floaters) {
+      if (game.canInteract())
+        continue;
       float tw = std::min(1100.f, std::max(520.f, textWidth(f.text, 26) + 54));
       round({f.p.x - tw / 2, f.p.y - 3, tw, 43}, 16,
             {20, 48, 54, Uint8(220 * std::min(f.life, 1.f))});

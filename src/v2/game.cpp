@@ -68,7 +68,7 @@ bool Game::canInteract() const {
 }
 void Game::toast(std::string text, uint32_t color) {
   floaters.clear();
-  floaters.push_back({{960, 180}, std::move(text), 1.6f, color});
+  floaters.push_back({{960, 152}, std::move(text), 1.6f, color});
 }
 void Game::burst(Vec p, int count, uint32_t color) {
   for (int i = 0; i < count && particles.size() < 180; ++i) {
@@ -362,7 +362,7 @@ void Game::updateVisuals(float dt) {
                   particles.end());
   for (auto &f : floaters) {
     f.life -= dt;
-    f.p.y -= 25 * dt;
+    f.p.y -= 5 * dt;
   }
   floaters.erase(std::remove_if(floaters.begin(), floaters.end(),
                                 [](const Floater &f) { return f.life <= 0; }),
