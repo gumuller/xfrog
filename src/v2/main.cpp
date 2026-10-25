@@ -57,7 +57,7 @@ int main(int argc, char **argv) {
     std::string save = profilePath();
     game.profile = loadProfile(save);
     Renderer renderer(std::string(base) + "assets/v2");
-    Audio audio;
+    Audio audio(std::string(base) + "assets/v2");
     if (full)
       renderer.fullscreen();
     bool quit = false, focused = true;

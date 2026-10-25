@@ -9,12 +9,26 @@
 - Add heat-dependent tips, delivery streaks, successive shifts, relaxed/arcade
   difficulty, dash cooldowns and forgiving feet/bumper collision bounds.
 - Add a complete menu/help/pause/results flow, mouse and gamepad support, original
-  8-bit chiptune music and eight renewed effects, focus pause and recoverable per-user progress.
+  console-style music and nine effects, focus pause and recoverable per-user progress.
 - Add HD asset/render contracts, whole-shift simulations, independent GUI E2E
   checks and a real delivery through live traffic using ordinary OS input.
 - Add visible pizza-carrying walks and idles in all directions, pickup/handoff
   sequences, interpolated movement and animated result transitions.
 - Preserve the original implementation as an optional classic target.
+
+### Playtest revisions
+
+- Replace uneven generated walk frames with continuous directional mesh animation,
+  stable faces/boxes, opposing leg strides and subtle arm swing.
+- Remove disconnected atlas fragments and avoid torso/leg seams.
+- Replace the short chiptune with a 184.6-second stereo, sampled-console-style
+  arrangement, contrasting themes and quiet bridge; add cashier delivery audio.
+- Restore the pizza thief, warning, theft, carrying/escape state and cooldown.
+- Add within-shift difficulty progression in Relaxed and Arcade modes, signaled
+  gap-checked lane changes, and consistent scale across all vehicles.
+- Replace interaction subtitles with outlined, shadowed speech balloons.
+- Add thief/progression regression suites, directional walk proofs, music variation
+  and loop checks, and vehicle footprint assertions.
 
 ## 1.03 — 2026-10-25
 

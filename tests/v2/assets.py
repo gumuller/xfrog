@@ -5,6 +5,7 @@ from pathlib import Path
 import struct
 import sys
 import zlib
+import wave
 root = Path(sys.argv[1])
 manifest = json.loads((root / "manifest.json").read_text())
 for name, expected in manifest["files"].items():
@@ -25,9 +26,15 @@ for name, expected in manifest["files"].items():
             crc = struct.unpack_from(">I", data, offset + 8 + length)[0]
             assert zlib.crc32(chunk) & 0xffffffff == crc, name + " corrupt PNG chunk"
             offset += length + 12
+    elif name.endswith(".wav"):
+        with wave.open(str(root/name)) as score:
+            assert score.getnchannels() == 2 and score.getsampwidth() == 2
+            assert score.getframerate() == 32000
+            assert score.getnframes()/score.getframerate() > 180
     elif name.endswith(".ttf"):
         assert data[:4] in (b"\x00\x01\x00\x00", b"OTTO"), "invalid font"
 assert manifest["courier_grid"] == [8, 4] and manifest["traffic_grid"] == [4, 2]
 assert manifest["poses_grid"] == [4, 3]
 assert manifest["carry_walk_grid"] == [8, 4] and manifest["carry_poses_grid"] == [4, 2]
+assert manifest["thief_grid"] == [2, 2]
 print("PASS: RGB city, 84-frame RGBA courier, eight RGBA vehicles, fonts and license checksums")

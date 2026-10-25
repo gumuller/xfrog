@@ -2,8 +2,9 @@
 
 A full-color, widescreen reimagining of Gustavo Simi Muller's original pizza
 courier arcade game. Deliver hot pizzas across Frog City's traffic in a sunny
-cartoon town, with a new 84-frame courier, eight frog-driven vehicles, responsive
-movement, original 8-bit chiptune music, and a complete shift-based game loop.
+cartoon town, with a smoothly animated courier, a mischievous pizza thief,
+eight frog-driven vehicles at consistent scale, responsive movement,
+an original three-minute console-style stereo score, and a complete shift-based game loop.
 
 ## Play on Linux
 
@@ -27,9 +28,12 @@ The renderer draws to a 1920x1080 full-color framebuffer and scales to the windo
 or fullscreen display, preserving 16:9. Textures use 24-bit RGB with an additional
 alpha channel for transparency. This is new full-color artwork and rendering,
 rather than an enlarged indexed framebuffer. Keyboard movement simulates at a
-fixed 120 Hz with render interpolation, with eight walking frames per direction
-both empty-handed and holding a pizza. Directional standing, pickup, handoff,
-celebration and recovery poses complete the 84-frame character set.
+fixed 120 Hz with render interpolation. Walking uses continuous mesh animation
+from stable directional key poses, with opposite leg strides and subtle arm swing.
+The face and pizza box stay consistent while moving, without resizing or
+morphing between generated frames. Sprite loading rejects disconnected atlas
+marks so neighboring frames cannot produce specks above the courier's head.
+
 
 ## Play on Windows
 
@@ -64,7 +68,19 @@ consecutive deliveries earn better tips. Dash has a cooldown. Collisions cost a
 heart and drop the pizza, then give a short respawn grace period.
 
 Clear six deliveries to finish your first shift; subsequent shifts increase the
-goal and traffic speed. Relaxed mode offers five hearts, fewer cars and a
+goal and traffic speed. Traffic also advances within a shift after every two
+deliveries and every 50 seconds, including Relaxed mode. At traffic level 3,
+cars can signal for 1.2 seconds before a smooth two-second lane change between
+the same-direction outer lanes. Projected gaps in the opposing lane and a safe
+distance from the courier are required. All vehicle classes share a 170-pixel
+collision footprint and a consistent on-screen width.
+
+The thief periodically crosses alternating sidewalks, warns before entering,
+and can snatch a carried pizza. Theft breaks the delivery streak without taking
+a heart; the thief carries the stolen box away and cannot steal another until
+a later pass. Dash and careful spacing help avoid him.
+
+Relaxed mode offers five hearts, fewer cars and a
 three-minute shift. Arcade has three hearts and denser traffic over two and a
 half minutes. Help, pause and loss of focus stop simulation and sound.
 
@@ -88,8 +104,11 @@ Automated playthroughs drive ordinary controls across live traffic through whole
 shifts. Renderer tests draw menu, gameplay, order, pause, help and results scenes,
 check full HD output and thousands of distinct colors, and verify bounded music.
 The asset contract checks actual RGB/RGBA PNGs, transparent atlases, fonts and
-checksums. A separate audio suite checks the full original 132 BPM theme for
-clipping and DC bias, checks eight distinct effects, and exports a playable WAV.
+checksums. Separate suites cover thief warnings, theft, escape, difficulty
+progression, safe/blocked lane changes and consistent vehicle footprints.
+The audio suite checks all 184.6 seconds of the stereo score for clipping and DC
+bias, checks section variation, stereo width, smooth loop boundaries and nine
+distinct effects, and exports the theme plus the cashier effect.
 
 For independent executable E2E tests, install the virtual display, OS input,
 image capture and OCR tools:
@@ -133,7 +152,13 @@ built-in image-generation workflow and consistent asset palette, and
 [the game design notes](docs/v2/design.md) for implemented improvements and
 suggested future districts, cosmetics and daily challenges. Fonts retain their
 included SIL Open Font Licenses; SDL and stb license texts are staged with builds.
-Music and sound cues are synthesized locally from an original score.
+The original town score is an 80-bar, 104 BPM arrangement with an intro,
+contrasting melodies, quiet bridge and reprise. Soft flute, electric piano,
+vibraphone, strings, bass, percussion and stereo echo evoke sampled console music.
+It contains no borrowed recordings or melodies. `scripts/compose_theme.py`
+regenerates `assets/v2/town-theme.wav` with Python and numpy; those tools are
+unnecessary at runtime. The game loads the included 32 kHz stereo PCM score.
+Delivery plays a synthesized cashier drawer and bell; theft has its own cue.
 
 ## Original game and classic build
 

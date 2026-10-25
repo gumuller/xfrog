@@ -25,7 +25,17 @@ struct Rect {
 };
 enum class Difficulty { Relaxed, Arcade };
 enum class Screen { Menu, Playing, Paused, Results, Help };
-enum class Cue { Pickup, Deliver, Hit, Dash, NearMiss, Expired, Win, Click };
+enum class Cue {
+  Pickup,
+  Deliver,
+  Hit,
+  Dash,
+  NearMiss,
+  Expired,
+  Win,
+  Click,
+  Steal
+};
 struct Controls {
   Vec move;
   bool interact = false, dash = false;
@@ -34,6 +44,13 @@ struct Car {
   float x = 0, y = 0, speed = 0, width = 0;
   int style = 0;
   bool nearAwarded = false;
+  float cruise = 0, mergeFrom = 0, mergeTo = 0, mergeAge = 0, signal = 0,
+        mergeCooldown = 8, previousY = 0;
+};
+struct Thief {
+  Vec p{-120, 665}, previous{-120, 665};
+  float wait = 12, warning = 0, direction = 1, animation = 0;
+  bool active = false, hasPizza = false;
 };
 struct Particle {
   Vec p, v;
@@ -57,9 +74,11 @@ struct Session {
         dashCooldown = 0, animation = 0, shake = 0, celebration = 0, pickup = 0,
         handoff = 0;
   int facing = 0, score = 0, delivered = 0, combo = 0, bestCombo = 0,
-      hearts = 3, target = 0, shift = 1, goal = 6, nearMisses = 0;
+      hearts = 3, target = 0, shift = 1, goal = 6, nearMisses = 0, level = 1,
+      stolen = 0, laneChanges = 0;
   bool carrying = false, won = false;
   std::vector<Car> cars;
+  Thief thief;
 };
 class Game {
 public:
@@ -75,7 +94,8 @@ public:
   const char *shops[5] = {"SUNRISE BAKERY", "THE GREEN GROCER", "HOTEL AZURE",
                           "THE WORKSHOP", "CORAL CAFE"};
   const Rect shopSolid{690, 685, 530, 285};
-  explicit Game(uint32_t seed = 1) : random(seed) {}
+  explicit Game(uint32_t seed = 1)
+      : random(seed), trafficRandom(seed ^ 0x51a7u) {}
   void start(bool next = false);
   void update(float dt, const Controls &input);
   void pause();
@@ -88,13 +108,15 @@ public:
   void hit();
   void burst(Vec p, int count, uint32_t color);
   bool clearAt(Vec p) const;
+  bool requestLaneChange(size_t index);
 
 private:
-  std::mt19937 random;
+  std::mt19937 random, trafficRandom;
   float randomFloat(float lo, float hi);
   void toast(std::string text, uint32_t color);
   void finish(bool won);
   void updateVisuals(float dt);
+  void updateThief(float dt);
 };
 Profile loadProfile(const std::string &path);
 bool saveProfile(const std::string &path, const Profile &profile);

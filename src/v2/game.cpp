@@ -23,9 +23,15 @@ void Game::start(bool next) {
       float speed = (lane == 1 ? -1.f : 1.f) *
                     (150 + lane * 28 + std::min(shift - 1, 8) * 12);
       run.cars.push_back({-260.f + i * (2440.f / count) + (lane % 2) * 230,
-                          416.f + lane * 100, speed, style < 2 ? 158.f : 205.f,
-                          style, false});
+                          416.f + lane * 100, speed, 170.f, style, false});
     }
+  for (auto &car : run.cars) {
+    car.cruise = std::abs(car.speed);
+    car.mergeCooldown =
+        std::uniform_real_distribution<float>(7, 18)(trafficRandom);
+    car.previousY = car.y;
+  }
+  run.level = shift;
   particles.clear();
   floaters.clear();
   cues.clear();
@@ -149,6 +155,12 @@ void Game::update(float dt, const Controls &input) {
   run.previous = run.player;
   run.time = std::max(0.f, run.time - dt);
   run.elapsed += dt;
+  int level =
+      std::min(8, run.shift + run.delivered / 2 + int(run.elapsed / 50));
+  if (level > run.level) {
+    run.level = level;
+    toast("TRAFFIC LEVEL " + std::to_string(level) + " - STAY SHARP!", Gold);
+  }
   run.dashCooldown = std::max(0.f, run.dashCooldown - dt);
   if (run.time <= 0) {
     finish(false);
@@ -196,12 +208,35 @@ void Game::update(float dt, const Controls &input) {
   else
     run.velocity.y = 0;
   if (length(run.velocity) > 20)
-    run.animation += dt * (run.dashTime > 0 ? 22.f : 12.f);
-  else
-    run.animation = 0;
+    run.animation += dt * length(run.velocity) / 160.f;
   if (input.interact)
     interact();
-  for (auto &car : run.cars) {
+  for (size_t i = 0; i < run.cars.size(); ++i) {
+    auto &car = run.cars[i];
+    car.previousY = car.y;
+    if (car.cruise > 0)
+      car.speed = std::copysign(
+          car.cruise * (1 + .045f * (run.level - run.shift)), car.speed);
+    car.mergeCooldown = std::max(0.f, car.mergeCooldown - dt);
+    if (car.signal > 0) {
+      car.signal = std::max(0.f, car.signal - dt);
+      if (car.signal == 0)
+        car.mergeAge = .0001f;
+    } else if (car.mergeAge > 0) {
+      car.mergeAge += dt;
+      float t = std::min(1.f, car.mergeAge / 2.0f);
+      float smooth = t * t * (3 - 2 * t);
+      car.y = car.mergeFrom + (car.mergeTo - car.mergeFrom) * smooth;
+      if (t >= 1) {
+        car.mergeAge = 0;
+        car.y = car.mergeTo;
+        car.mergeCooldown =
+            std::uniform_real_distribution<float>(12, 22)(trafficRandom);
+      }
+    } else if (run.level >= 3 && car.mergeCooldown <= 0) {
+      if (!requestLaneChange(i))
+        car.mergeCooldown = 2;
+    }
     car.x += car.speed * dt;
     if (car.x > Width + 300) {
       car.x = -300;
@@ -227,6 +262,88 @@ void Game::update(float dt, const Controls &input) {
       toast("CLOSE CALL +5", Mint);
       cues.push_back(Cue::NearMiss);
     }
+  }
+  if (screen == Screen::Playing)
+    updateThief(dt);
+}
+bool Game::requestLaneChange(size_t index) {
+  if (index >= run.cars.size())
+    return false;
+  auto &car = run.cars[index];
+  // Only same-direction outer lanes exchange traffic. The opposing middle
+  // lane must have a clear projected corridor for the whole maneuver.
+  if (car.speed <= 0 || car.signal > 0 || car.mergeAge > 0 || car.x < 220 ||
+      car.x > Width - 220 || std::abs(car.x - run.player.x) < 260 ||
+      (std::abs(car.y - 416) > 1 && std::abs(car.y - 616) > 1))
+    return false;
+  for (size_t j = 0; j < run.cars.size(); ++j) {
+    if (j == index)
+      continue;
+    const auto &other = run.cars[j];
+    if (other.signal > 0 || other.mergeAge > 0)
+      return false;
+    float gap = (car.width + other.width) * .5f + 45;
+    for (int step = 0; step <= 32; ++step) {
+      float t = step * .1f;
+      float progress = std::clamp((t - 1.2f) / 2.f, 0.f, 1.f);
+      float target = car.y < 500 ? 616.f : 416.f;
+      float predictedY =
+          car.y + (target - car.y) * progress * progress * (3 - 2 * progress);
+      if (std::abs(predictedY - other.y) > 60)
+        continue;
+      float x = car.x + car.speed * t, ox = other.x + other.speed * t;
+      if (ox > Width + 300)
+        ox -= Width + 600;
+      if (ox < -300)
+        ox += Width + 600;
+      if (std::abs(x - ox) < gap)
+        return false;
+    }
+  }
+  ++run.laneChanges;
+  car.mergeFrom = car.y;
+  car.mergeTo = car.y < 500 ? 616.f : 416.f;
+  car.signal = 1.2f;
+  car.mergeAge = 0;
+  return true;
+}
+void Game::updateThief(float dt) {
+  auto &thief = run.thief;
+  thief.previous = thief.p;
+  if (!thief.active) {
+    thief.wait -= dt;
+    if (thief.wait > 0)
+      return;
+    thief.active = true;
+    thief.hasPizza = false;
+    thief.warning = 1.5f;
+    thief.p = {thief.direction > 0 ? -95.f : Width + 95, thief.p.y};
+    thief.previous = thief.p;
+    toast("PIZZA THIEF INCOMING - KEEP YOUR DISTANCE!", Coral);
+  }
+  if (thief.warning > 0) {
+    thief.warning = std::max(0.f, thief.warning - dt);
+    return;
+  }
+  float speed = (thief.hasPizza ? 245.f : 150.f) + 8 * run.level;
+  thief.p.x += thief.direction * speed * dt;
+  thief.animation += dt * speed / 160.f;
+  if (!thief.hasPizza && run.carrying && run.invulnerable <= 0 &&
+      length(run.player - thief.p) < 38) {
+    thief.hasPizza = true;
+    run.carrying = false;
+    run.pickup = run.handoff = 0;
+    run.combo = 0;
+    ++run.stolen;
+    cues.push_back(Cue::Steal);
+    toast("THE THIEF TOOK YOUR PIZZA! GRAB A FRESH ONE.", Coral);
+    burst(run.player, 18, Coral);
+  }
+  if (thief.p.x > Width + 110 || thief.p.x < -110) {
+    thief.active = false;
+    thief.direction *= -1;
+    thief.p.y = thief.p.y > 500 ? 350.f : 665.f;
+    thief.wait = std::max(9.f, 21.f - run.level * 1.2f);
   }
 }
 void Game::updateVisuals(float dt) {

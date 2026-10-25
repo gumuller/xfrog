@@ -3,9 +3,16 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <stdexcept>
 namespace xfrog {
 static constexpr float Pi = 3.14159265358979323846f;
-Audio::Audio() {
+namespace {
+std::vector<float> score;
+}
+Audio::Audio(const std::string &assets) {
+  if (!assets.empty() && !loadMusic(assets + "/town-theme.wav"))
+    throw std::runtime_error("Unable to load town soundtrack: " +
+                             std::string(SDL_GetError()));
   SDL_AudioSpec spec{SDL_AUDIO_F32, 2, 48000};
   stream = SDL_OpenAudioDeviceStream(SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK, &spec,
                                      nullptr, nullptr);
@@ -16,7 +23,7 @@ Audio::Audio() {
 }
 Audio::~Audio() { SDL_DestroyAudioStream(stream); }
 namespace {
-constexpr double Rate = 48000, Eighth = 60.0 / 132 / 2;
+constexpr double Rate = 48000;
 float frequency(int midi) {
   static const auto table = [] {
     std::array<float, 128> values{};
@@ -57,60 +64,35 @@ float noise(uint64_t sample) {
   return float((n >> 22) ^ n) / 2147483648.f - 1;
 }
 } // namespace
-float Audio::musicSample(uint64_t sample) {
-  // Original 132 BPM, eight-bar chiptune: pulse lead, arpeggio, triangle
-  // bass and clocked-noise drums. No external recordings or licensed tunes.
-  static constexpr int melody[64] = {
-      72, 76, 79, -1, 76, 74, 72, 0,  77, 81, 84, -1, 81, 79, 77, 0,
-      81, 76, 81, 83, 84, 83, 81, 0,  79, 83, 86, -1, 84, 83, 79, 0,
-      84, 83, 81, 79, 76, 79, 84, -1, 74, 77, 81, -1, 77, 76, 74, 0,
-      77, 81, 84, 81, 79, 81, 77, 74, 79, 83, 86, 83, 79, 76, 72, -1};
-  static constexpr int roots[8] = {60, 65, 57, 67, 60, 62, 65, 67};
-  double time = std::fmod(double(sample) / Rate, Eighth * 64);
-  int step = std::min(63, int(time / Eighth)), bar = step / 8;
-  double age = time - step * Eighth;
-  int noteStep = step;
-  if (melody[step] == -1)
-    --noteStep;
-  int note = melody[noteStep];
-  double noteAge = time - noteStep * Eighth;
-  double duration =
-      Eighth * ((noteStep < 63 && melody[noteStep + 1] == -1) ? 2 : 1);
-  float lead = note > 0 ? pulse(noteAge, frequency(note)) *
-                              envelope(noteAge, duration) * .052f
-                        : 0;
-  // Alternating root/fifth bass gives the delivery loop a buoyant walking
-  // pulse.
-  int bassNote = roots[bar] - 24 + ((step % 4 == 2) ? 7 : 0);
-  float bass =
-      triangle(age, frequency(bassNote)) * envelope(age, Eighth) * .052f;
-  int sixteenth = int(time / (Eighth / 2));
-  static constexpr int arps[4] = {0, 7, 12, 7};
-  int third = (bar == 2 || bar == 5) ? 3 : 4;
-  int offset = sixteenth % 4 == 1 ? third : arps[sixteenth % 4];
-  double arpAge = std::fmod(time, Eighth / 2);
-  float arp = pulse(arpAge, frequency(roots[bar] + 12 + offset), .125) *
-              envelope(arpAge, Eighth / 2) * .013f;
-  float hat = noise(sample) * std::exp(float(-arpAge * 110)) * .013f;
-  double beatAge = std::fmod(time, Eighth * 2);
-  float drum;
-  if ((step / 2) % 2 == 0) {
-    // Integrate the exponential pitch sweep, avoiding phase discontinuities.
-    double phase = 48 * beatAge + 95 * (1 - std::exp(-beatAge * 32)) / 32;
-    drum = std::sin(float(phase * 2 * Pi)) * std::exp(float(-beatAge * 23)) *
-           .046f;
-  } else {
-    drum = (noise(sample) * .032f + triangle(beatAge, 170) * .014f) *
-           std::exp(float(-beatAge * 28));
-  }
-  return lead + bass + arp + hat + drum;
+bool Audio::loadMusic(const std::string &path) {
+  SDL_AudioSpec input{}, output{SDL_AUDIO_F32, 2, 48000};
+  Uint8 *bytes = nullptr, *converted = nullptr;
+  Uint32 length = 0;
+  int convertedLength = 0;
+  if (!SDL_LoadWAV(path.c_str(), &input, &bytes, &length))
+    return false;
+  bool ok = SDL_ConvertAudioSamples(&input, bytes, int(length), &output,
+                                    &converted, &convertedLength);
+  SDL_free(bytes);
+  if (!ok)
+    return false;
+  const float *data = reinterpret_cast<const float *>(converted);
+  score.assign(data, data + convertedLength / sizeof(float));
+  SDL_free(converted);
+  return !score.empty();
+}
+uint64_t Audio::musicFrames() { return score.size() / 2; }
+float Audio::musicSample(uint64_t sample, int channel) {
+  if (score.empty())
+    return 0;
+  return score[(sample % musicFrames()) * 2 + (channel & 1)];
 }
 int Audio::soundSamples(Cue cue) {
   switch (cue) {
   case Cue::Win:
     return 48000;
   case Cue::Deliver:
-    return 19200;
+    return 33600;
   case Cue::Hit:
     return 16800;
   case Cue::Expired:
@@ -123,6 +105,8 @@ int Audio::soundSamples(Cue cue) {
     return 7200;
   case Cue::Click:
     return 2400;
+  case Cue::Steal:
+    return 19200;
   }
   return 0;
 }
@@ -140,11 +124,24 @@ float Audio::soundSample(Cue cue, uint64_t sample) {
     break;
   }
   case Cue::Deliver: {
-    const int notes[] = {84, 88, 91, 96};
-    wave =
-        pulse(std::fmod(t, .1), frequency(notes[std::min(3, int(t / .1))]), .5);
+    // Cash drawer clack, followed by the bright two-part cashier "ka-ching".
+    wave = noise(sample) * std::exp(float(-t * 65)) * .55f;
+    for (double onset : {.065, .16}) {
+      double u = t - onset;
+      if (u >= 0)
+        wave += float((std::sin(2 * Pi * 2100 * u) +
+                       .35 * std::sin(2 * Pi * 4217 * u) +
+                       .18 * std::sin(2 * Pi * 6350 * u)) *
+                      std::exp(-u * 8)) *
+                .65f;
+    }
+    volume = .11f;
     break;
   }
+  case Cue::Steal:
+    wave = triangle(700 * t - 480 * t * t, 1) *
+           (.75f + .25f * std::sin(float(t) * 70));
+    break;
   case Cue::Win: {
     const int notes[] = {72, 76, 79, 84, 79, 84, 88, 91};
     int n = std::min(7, int(t * 8));
@@ -199,7 +196,8 @@ void Audio::update(bool enabled, bool paused, const std::vector<Cue> &cues) {
     return;
   std::vector<float> output(frames * 2);
   for (int i = 0; i < frames; ++i) {
-    float value = musicSample(cursor++);
+    float left = musicSample(cursor, 0), right = musicSample(cursor++, 1);
+    float value = 0;
     for (auto &voice : voices) {
       value += soundSample(voice.cue, voice.age);
       ++voice.age;
@@ -209,8 +207,8 @@ void Audio::update(bool enabled, bool paused, const std::vector<Cue> &cues) {
                        [](const Voice &v) { return v.age >= v.duration; }),
         voices.end());
     value = std::clamp(value, -.8f, .8f);
-    output[i * 2] = value;
-    output[i * 2 + 1] = value;
+    output[i * 2] = std::clamp(left + value, -.8f, .8f);
+    output[i * 2 + 1] = std::clamp(right + value, -.8f, .8f);
   }
   SDL_PutAudioStreamData(stream, output.data(),
                          int(output.size() * sizeof(float)));

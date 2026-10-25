@@ -13,3 +13,5 @@ assets/v2/manifest.json text eol=lf
 assets/v2/*LICENSE.txt text eol=lf -whitespace
 vendor/*LICENSE.txt text eol=lf -whitespace
 vendor/*.h text eol=lf
+
+assets/v2/*.wav binary

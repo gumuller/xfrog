@@ -22,7 +22,11 @@ this coordinate system, so collision zones correspond to the selected artwork.
   box with a coral badge in both hands, in the same down/right/up/left row order.
 - `assets/v2/carry-poses.png`: four holding idles (down/right/up/left) followed
   by four front-facing handoff frames. Reversed handoff frames animate pickup.
-  The complete character set contains 84 frames.
+  The authored set contains 84 frames. The original walk sheets are retained
+  for reference; runtime walking now animates the clean directional standing
+  poses with one continuous mesh to keep identity and proportions stable.
+- `assets/v2/thief.png`: right/left poses, empty-handed and holding a stolen pizza.
+  Continuous mesh animation provides his sneaking walk.
 - `assets/v2/traffic.png`: four vehicles in both directions, eight sprites total.
 - Lilita One supplies the playful headings. Atkinson Hyperlegible supplies clear
   small text. Their SIL Open Font Licenses are included beside the fonts.
@@ -163,3 +167,25 @@ lighting and baseline. Full bodies, no cropping, shadows, text or grid lines.
 Targeted correction: change only the third sprite in the top row to face UP
 away from camera, with backpack visible and pizza box held beyond the shoulders.
 Preserve the other seven sprites and transparency unchanged.
+
+## Returning thief production prompt
+
+Built-in image_gen, transparent background. Final saved asset:
+`assets/v2/thief.png` (2 columns by 2 rows). Use case: stylized-concept.
+A lanky, mischievous friendly human pizza thief, purple flat cap, black eye mask,
+cream-and-black striped shirt, dark plum trousers, brown rounded shoes,
+expressive sly smile and big nose. Match the town's warm shaded cartoon art,
+dark teal outlines and elevated three-quarter camera. Four full-body grounded
+standing poses: top row right/left empty-handed; bottom row right/left holding
+a closed cream pizza box with coral emblem in both hands. Identical body scale
+and outfit across cells, generous transparent margins, no shadows, scenery,
+text, grid lines or floating marks. The original generated alpha is preserved.
+
+## Runtime cleanup and animation
+
+The importer keeps the largest connected alpha component inside each cell,
+rejecting detached marks and neighboring frame fragments. Walking does not
+cycle through inconsistent generated faces or scale each walking frame. A
+continuous textured mesh keeps the head and carried box stable, with opposite
+leg strides and gentle arm swing. Its phase follows distance traveled. The
+whole body is one mesh, avoiding a visible torso/leg cut seam.

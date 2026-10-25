@@ -23,6 +23,9 @@ static void model() {
   check(g.run.hearts == 5 && g.run.time == 180,
         "relaxed has accessible defaults");
   check(g.canInteract(), "spawn is in pickup range");
+  for (const auto &car : g.run.cars)
+    check(car.width == 170,
+          "vehicle classes have consistent gameplay footprints");
   g.interact();
   check(g.run.carrying && g.run.heat == 1, "pickup assigns fresh pizza");
   check(g.run.pickup > 0, "pickup starts visible box collection");
@@ -159,6 +162,81 @@ static void traffic() {
   check(g.run.cars[0].x < 0 && !g.run.cars[0].nearAwarded,
         "wrapped traffic resets close call eligibility");
 }
+static void progression() {
+  Game g(13);
+  g.start();
+  float initial = std::abs(g.run.cars[0].speed);
+  g.run.delivered = 2;
+  ticks(g, 1);
+  check(g.run.level == 2 && std::abs(g.run.cars[0].speed) > initial,
+        "relaxed progression starts within the first shift");
+  g.run.elapsed = 100;
+  ticks(g, 1);
+  check(g.run.level >= 4, "time adds pressure even without deliveries");
+  g.run.player = {100, 1000};
+  g.run.cars = {{600, 416, 150, 158, 0, false}};
+  check(g.requestLaneChange(0),
+        "clear same-direction corridor allows lane change");
+  check(g.run.cars[0].signal >= 1,
+        "lane change gives at least a second of warning");
+  ticks(g, 120);
+  check(g.run.cars[0].y == 416, "car stays in lane throughout warning");
+  ticks(g, 60);
+  check(g.run.cars[0].y > 416 && g.run.cars[0].y < 616,
+        "lane change is continuous, not a teleport");
+  ticks(g, 240);
+  check(g.run.cars[0].y == 616 && g.run.cars[0].mergeAge == 0,
+        "car finishes in same-direction outer lane");
+  g.run.cars = {{600, 416, 150, 158, 0, false},
+                {1300, 516, -178, 158, 0, false}};
+  check(!g.requestLaneChange(0), "opposing traffic blocks unsafe lane changes");
+  g.run.cars.resize(1);
+  g.run.player = {650, 700};
+  check(!g.requestLaneChange(0),
+        "nearby courier prevents surprise lane changes");
+  Game busy(19);
+  busy.start();
+  busy.start(true);
+  busy.start(true);
+  ticks(busy, 120 * 100);
+  check(busy.run.laneChanges > 0,
+        "ordinary later-shift traffic performs actual lane changes");
+}
+static void thief() {
+  Game g(7);
+  g.start();
+  g.run.cars.clear();
+  g.interact();
+  int hearts = g.run.hearts;
+  g.run.thief.wait = .001f;
+  ticks(g, 1);
+  check(g.run.thief.active && g.run.thief.warning > 1,
+        "thief gives an advance entrance warning");
+  g.pause();
+  float warning = g.run.thief.warning;
+  ticks(g, 120);
+  check(g.run.thief.warning == warning, "pause freezes thief too");
+  g.resume();
+  auto &t = g.run.thief;
+  t.warning = 0;
+  t.p = g.run.player;
+  ticks(g, 1);
+  check(!g.run.carrying && t.hasPizza && g.run.stolen == 1,
+        "thief steals pizza on contact");
+  check(g.run.hearts == hearts && g.run.combo == 0,
+        "theft breaks streak without costing a heart");
+  check(std::find(g.cues.begin(), g.cues.end(), Cue::Steal) != g.cues.end(),
+        "theft has its own sound cue");
+  g.interact();
+  ticks(g, 1);
+  check(g.run.carrying,
+        "same thief cannot steal twice while carrying stolen pizza");
+  t.p.x = Width + 109;
+  ticks(g, 1);
+  check(!t.active && t.wait >= 9, "thief escapes and has a fair respawn delay");
+  check(t.direction < 0 && t.p.y == 350,
+        "next pass changes direction and sidewalk");
+}
 static void profile(const std::string &folder) {
   std::filesystem::create_directories(folder);
   std::string path = folder + "/profile-test.dat";
@@ -248,10 +326,10 @@ static bool bot(uint32_t seed, Difficulty difficulty) {
         for (const auto &car : g.run.cars) {
           float center = car.y + 22;
           float gap = (center - g.run.player.y) * c.move.y;
-          if (gap > 20 && gap < 125) {
-            float arrival = gap / 285;
+          if (gap > 30 && gap < 155) {
+            float arrival = (gap + 40) / 285;
             float future = car.x + car.speed * arrival;
-            if (std::abs(future - g.run.player.x) < car.width * .5f + 75) {
+            if (std::abs(future - g.run.player.x) < car.width * .5f + 85) {
               c.move = {};
               break;
             }
@@ -274,6 +352,10 @@ int main(int argc, char **argv) {
       model();
     else if (suite == "traffic")
       traffic();
+    else if (suite == "progression")
+      progression();
+    else if (suite == "thief")
+      thief();
     else if (suite == "profile")
       profile(argc > 2 ? argv[2] : ".");
     else if (suite == "playthrough" || suite == "arcade") {

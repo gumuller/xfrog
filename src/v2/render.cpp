@@ -76,8 +76,6 @@ Image Renderer::image(const std::string &path, int columns, int rows) {
     stbi_image_free(pixels);
     throw std::runtime_error(SDL_GetError());
   }
-  bool uploaded =
-      SDL_UpdateTexture(value.texture, nullptr, pixels, value.width * 4);
   SDL_SetTextureBlendMode(value.texture, SDL_BLENDMODE_BLEND);
   SDL_SetTextureScaleMode(value.texture, SDL_SCALEMODE_LINEAR);
   if (columns > 1)
@@ -87,15 +85,57 @@ Image Renderer::image(const std::string &path, int columns, int rows) {
             x1 = (col + 1) * value.width / columns,
             y0 = row * value.height / rows,
             y1 = (row + 1) * value.height / rows;
-        int left = x1, right = x0, top = y1, bottom = y0;
-        for (int y = y0; y < y1; ++y)
-          for (int x = x0; x < x1; ++x)
-            if (pixels[(y * value.width + x) * 4 + 3] > 32) {
-              left = std::min(left, x);
-              right = std::max(right, x);
-              top = std::min(top, y);
-              bottom = std::max(bottom, y);
+        // Retain the largest connected alpha component inside each cell.
+        // Neighboring shoes and isolated marks must never become hat pixels.
+        int cw = x1 - x0, ch = y1 - y0;
+        std::vector<int> labels(cw * ch, -1), queue;
+        std::vector<int> largest;
+        int component = 0;
+        for (int sy = 0; sy < ch; ++sy)
+          for (int sx = 0; sx < cw; ++sx) {
+            int start = sy * cw + sx;
+            if (labels[start] >= 0 ||
+                pixels[((y0 + sy) * value.width + x0 + sx) * 4 + 3] <= 32)
+              continue;
+            queue.clear();
+            queue.push_back(start);
+            labels[start] = component;
+            for (size_t q = 0; q < queue.size(); ++q) {
+              int at = queue[q], x = at % cw, y = at / cw;
+              for (int dy = -1; dy <= 1; ++dy)
+                for (int dx = -1; dx <= 1; ++dx) {
+                  int nx = x + dx, ny = y + dy;
+                  if (nx < 0 || nx >= cw || ny < 0 || ny >= ch)
+                    continue;
+                  int ni = ny * cw + nx;
+                  if (labels[ni] < 0 &&
+                      pixels[((y0 + ny) * value.width + x0 + nx) * 4 + 3] >
+                          32) {
+                    labels[ni] = component;
+                    queue.push_back(ni);
+                  }
+                }
             }
+            if (queue.size() > largest.size())
+              largest = queue;
+            ++component;
+          }
+        int keep = largest.empty() ? -2 : labels[largest.front()];
+        int left = x1, right = x0, top = y1, bottom = y0;
+        for (int y = 0; y < ch; ++y)
+          for (int x = 0; x < cw; ++x) {
+            auto &alpha = pixels[((y0 + y) * value.width + x0 + x) * 4 + 3];
+            if (labels[y * cw + x] != keep) {
+              alpha = 0;
+              continue;
+            }
+            if (alpha > 32) {
+              left = std::min(left, x0 + x);
+              right = std::max(right, x0 + x);
+              top = std::min(top, y0 + y);
+              bottom = std::max(bottom, y0 + y);
+            }
+          }
         if (left > right) {
           stbi_image_free(pixels);
           SDL_DestroyTexture(value.texture);
@@ -105,6 +145,8 @@ Image Renderer::image(const std::string &path, int columns, int rows) {
                                 float(right - left + 1),
                                 float(bottom - top + 1)});
       }
+  bool uploaded =
+      SDL_UpdateTexture(value.texture, nullptr, pixels, value.width * 4);
   stbi_image_free(pixels);
   checked(uploaded);
   return value;
@@ -124,11 +166,10 @@ Renderer::Renderer(const std::string &assets, bool hidden) {
   checked(framebuffer);
   SDL_SetTextureScaleMode(framebuffer, SDL_SCALEMODE_LINEAR);
   city = image(assets + "/city.png");
-  courier = image(assets + "/courier.png", 8, 4);
   traffic = image(assets + "/traffic.png", 4, 2);
   poses = image(assets + "/poses.png", 4, 3);
-  carryWalk = image(assets + "/carry-walk.png", 8, 4);
   carryPoses = image(assets + "/carry-poses.png", 4, 2);
+  thief = image(assets + "/thief.png", 2, 2);
   fontData = bytes(assets + "/Body.ttf");
   headingData = bytes(assets + "/LilitaOne.ttf");
   font(40);
@@ -152,11 +193,10 @@ Renderer::Renderer(const std::string &assets, bool hidden) {
 Renderer::~Renderer() {
   fonts.clear();
   SDL_DestroyTexture(city.texture);
-  SDL_DestroyTexture(courier.texture);
   SDL_DestroyTexture(traffic.texture);
   SDL_DestroyTexture(poses.texture);
-  SDL_DestroyTexture(carryWalk.texture);
   SDL_DestroyTexture(carryPoses.texture);
+  SDL_DestroyTexture(thief.texture);
   SDL_DestroyTexture(framebuffer);
   SDL_DestroyRenderer(renderer);
   SDL_DestroyWindow(window);
@@ -297,25 +337,120 @@ std::string Renderer::clicked(Vec p) const {
       return it->action;
   return {};
 }
-void Renderer::courierSprite(Vec feet, int facing, float frame, float height,
-                             float alpha, int pose, bool holding) {
-  int index = std::clamp(facing, 0, 3) * 8 + (int(frame) % 8);
-  const Image &atlas = holding ? (pose >= 0 ? carryPoses : carryWalk)
-                               : (pose >= 0 ? poses : courier);
-  const auto &src = atlas.frames[pose >= 0 ? pose : index];
+void Renderer::actor(const Image &atlas, int index, Vec feet, float height,
+                     float phase, float stride, int facing, float alpha,
+                     float hip, bool arms) {
+  const auto &src = atlas.frames[index];
   float w = height * src.w / src.h;
+  float angle = phase * 6.2831853f, swing = std::sin(angle) * stride;
+  float bob = -std::pow(std::sin(angle), 2.f) * 1.4f * stride;
   ellipse({feet.x, feet.y + 3}, height * .22f, height * .065f,
           {17, 43, 50, Uint8(75 * alpha)});
-  picture(atlas, {feet.x - w * .5f, feet.y - height, w, height}, &src, alpha);
+  // One continuous skin mesh: stable face and box, opposing leg strides,
+  // gentle arm swing, no independent frame resizing or torso/leg cut seams.
+  constexpr int columns = 16, rows = 36;
+  std::vector<SDL_Vertex> vertices;
+  std::vector<int> indices;
+  vertices.reserve((columns + 1) * (rows + 1));
+  indices.reserve(columns * rows * 6);
+  for (int row = 0; row <= rows; ++row)
+    for (int col = 0; col <= columns; ++col) {
+      float u = col / float(columns), v = row / float(rows);
+      float side = u < .5f ? -1.f : 1.f;
+      float separation = std::clamp(std::abs(u - .5f) * 4, 0.f, 1.f);
+      float leg = std::clamp((v - hip) / (1 - hip), 0.f, 1.f);
+      float dx =
+          side * swing * (facing % 2 ? 6.f : 1.2f) * leg * leg * separation;
+      float dy =
+          (facing % 2 ? -std::max(0.f, side * swing) * 4 : side * swing * 3) *
+          leg * separation;
+      if (arms && v > .4f && v < hip) {
+        float arm = std::clamp((std::abs(u - .5f) - .22f) * 5, 0.f, 1.f) *
+                    std::sin((v - .4f) / (hip - .4f) * 3.14159265f);
+        dx += side * swing * arm * 1.5f;
+        dy += side * swing * arm * 2.5f;
+      }
+      vertices.push_back({{feet.x + (u - .5f) * w + dx,
+                           feet.y - height + v * height + bob + dy},
+                          {1, 1, 1, alpha},
+                          {(src.x + src.w * u) / atlas.width,
+                           (src.y + src.h * v) / atlas.height}});
+      if (row < rows && col < columns) {
+        int n = row * (columns + 1) + col;
+        indices.insert(indices.end(), {n, n + 1, n + columns + 1, n + 1,
+                                       n + columns + 2, n + columns + 1});
+      }
+    }
+  SDL_SetTextureAlphaMod(atlas.texture, 255);
+  checked(SDL_RenderGeometry(renderer, atlas.texture, vertices.data(),
+                             int(vertices.size()), indices.data(),
+                             int(indices.size())));
+}
+void Renderer::courierSprite(Vec feet, int facing, float frame, float height,
+                             float alpha, int pose, bool holding,
+                             float stride) {
+  const Image &atlas = holding ? carryPoses : poses;
+  if (pose < 0) {
+    actor(atlas, std::clamp(facing, 0, 3), feet, height, frame, stride, facing,
+          alpha, .67f, !holding);
+    return;
+  }
+  actor(atlas, pose, feet, height, 0, 0, facing, alpha);
+}
+void Renderer::balloon(Vec anchor, const std::string &title,
+                       const std::string &detail, bool interact) {
+  float w = std::max(textWidth(title, 29), textWidth(detail, 21)) +
+            (interact ? 105.f : 58.f);
+  w = std::clamp(w, 245.f, 510.f);
+  float x = std::clamp(anchor.x - w / 2, 18.f, Width - w - 18);
+  float y = std::max(130.f, anchor.y - 102);
+  round({x + 2, y + 7, w, 85}, 24, {7, 29, 36, 75});
+  round({x, y, w, 85}, 24, Ink);
+  round({x + 3, y + 3, w - 6, 79}, 21, Cream);
+  float tail = std::clamp(anchor.x, x + 32, x + w - 32);
+  SDL_Vertex outline[] = {{{tail - 14, y + 82},
+                           {Ink.r / 255.f, Ink.g / 255.f, Ink.b / 255.f, 1},
+                           {0, 0}},
+                          {{tail + 14, y + 82},
+                           {Ink.r / 255.f, Ink.g / 255.f, Ink.b / 255.f, 1},
+                           {0, 0}},
+                          {{tail, y + 101},
+                           {Ink.r / 255.f, Ink.g / 255.f, Ink.b / 255.f, 1},
+                           {0, 0}}};
+  SDL_RenderGeometry(renderer, nullptr, outline, 3, nullptr, 0);
+  for (auto &v : outline)
+    v.color = {Cream.r / 255.f, Cream.g / 255.f, Cream.b / 255.f, 1};
+  outline[0].position = {tail - 9, y + 80};
+  outline[1].position = {tail + 9, y + 80};
+  outline[2].position = {tail, y + 95};
+  SDL_RenderGeometry(renderer, nullptr, outline, 3, nullptr, 0);
+  float center = x + w / 2 + (interact ? 26.f : 0.f);
+  if (interact) {
+    round({x + 14, y + 22, 53, 39}, 10, Ink);
+    text("SPACE", x + 40, y + 32, 15, Cream, true);
+  }
+  text(title, center, y + 12, 29, Ink, true);
+  text(detail, center, y + 49, 21, {51, 100, 98}, true);
 }
 void Renderer::vehicle(const Car &car, float time) {
   const auto &src = traffic.frames[car.style + (car.speed < 0 ? 4 : 0)];
-  float w = car.width + 30, h = w * src.h / src.w;
+  float w = car.width + 26, h = std::min(146.f, w * src.h / src.w);
   ellipse({car.x, car.y + 36}, w * .45f, 12, {9, 27, 35, 70});
   picture(traffic,
           {car.x - w * .5f,
            car.y + 44 - h + std::sin(time * 8 + car.style * 1.7f) * .7f, w, h},
           &src);
+  if (car.signal > 0 || car.mergeAge > 0) {
+    float side = car.mergeTo > car.mergeFrom ? 1.f : -1.f;
+    float blink = std::sin(time * 16) > 0 ? 1.f : .25f;
+    ellipse({car.x + w * .32f, car.y + 16 + side * 19}, 7, 5,
+            {255, 190, 55, Uint8(255 * blink)});
+    if (car.signal > 0) {
+      for (int i = 1; i < 6; ++i)
+        ellipse({car.x + i * 12.f, car.y + 22 + side * i * 20}, 4, 4,
+                {255, 211, 107, 150});
+    }
+  }
 }
 void Renderer::board(const Game &game, float time) {
   Vec feet = game.run.previous * (1 - blend) + game.run.player * blend;
@@ -327,14 +462,11 @@ void Renderer::board(const Game &game, float time) {
     ellipse(destination, 61 + pulse * 5, 19 + pulse * 2, {255, 214, 105, 60});
     ellipse(destination, 40, 12, {255, 225, 140, 95});
     // Clear, diegetic destination tag anchored at the door.
-    float width = game.run.carrying ? 270.f : 220.f;
-    if (!game.canInteract()) {
-      round({destination.x - width * .5f, destination.y - 79, width, 42}, 16,
-            Ink);
-      text(game.run.carrying ? "DELIVER HERE" : "PIZZA PICKUP", destination.x,
-           destination.y - 75, 28, Gold, true);
-      text("v", destination.x, destination.y - 41, 32, Gold, true);
-    }
+    if (!game.canInteract())
+      balloon({destination.x, destination.y - 25},
+              game.run.carrying ? "DELIVER HERE" : "PIZZA PICKUP",
+              game.run.carrying ? "One hot pizza, one happy customer"
+                                : "Fresh from the oven");
     if (game.run.carrying) {
       float alpha = .65f + .35f * std::sin(time * 3);
       ellipse({feet.x, feet.y + 2}, 30, 10, {255, 207, 93, Uint8(100 * alpha)});
@@ -349,10 +481,17 @@ void Renderer::board(const Game &game, float time) {
     for (size_t i = 0; i < game.run.cars.size(); ++i)
       order.push_back({game.run.cars[i].y + 40, int(i)});
     order.push_back({feet.y, -1});
+    if (game.run.thief.active && game.run.thief.warning <= 0)
+      order.push_back({game.run.thief.p.y, -2});
     std::sort(order.begin(), order.end(),
               [](DrawItem a, DrawItem b) { return a.y < b.y; });
     for (auto item : order)
-      if (item.index < 0) {
+      if (item.index == -2) {
+        const auto &t = game.run.thief;
+        Vec p = t.previous * (1 - blend) + t.p * blend;
+        actor(thief, (t.hasPizza ? 2 : 0) + (t.direction < 0 ? 1 : 0), p, 121,
+              t.animation, 1, 1, 1, .57f, !t.hasPizza);
+      } else if (item.index < 0) {
         float alpha = game.run.invulnerable > 0
                           ? (.55f + .45f * std::abs(std::sin(time * 15)))
                           : 1;
@@ -383,10 +522,13 @@ void Renderer::board(const Game &game, float time) {
           }
         }
         courierSprite(feet, game.run.facing, game.run.animation, 110, alpha,
-                      pose, holding);
+                      pose, holding,
+                      std::min(1.f, length(game.run.velocity) / 160.f));
       } else {
         Car car = game.run.cars[item.index];
         car.x -= car.speed * ((1 - blend) / 120.f);
+        if (car.previousY > 0)
+          car.y = car.previousY * (1 - blend) + car.y * blend;
         vehicle(car, time);
       }
     for (const auto &p : game.particles)
@@ -394,7 +536,8 @@ void Renderer::board(const Game &game, float time) {
           p.p, p.size, p.size,
           rgb(p.color, Uint8(255 * std::clamp(p.life / p.total, 0.f, 1.f))));
     for (const auto &f : game.floaters) {
-      round({f.p.x - 260, f.p.y - 3, 520, 43}, 16,
+      float tw = std::min(1100.f, std::max(520.f, textWidth(f.text, 26) + 54));
+      round({f.p.x - tw / 2, f.p.y - 3, tw, 43}, 16,
             {20, 48, 54, Uint8(220 * std::min(f.life, 1.f))});
       text(f.text, f.p.x, f.p.y + 2, 26,
            rgb(f.color, Uint8(255 * std::min(f.life, 1.f))), true);
@@ -458,10 +601,16 @@ void Renderer::hud(const Game &game, float time) {
     text("ARROWS / WASD  MOVE     SPACE  PICK UP / DELIVER     H  HELP", 1265,
          1040, 23, Ink, true);
   if (game.canInteract()) {
-    round({r.player.x - 178, r.player.y - 157, 356, 46}, 18, Gold);
-    text(r.carrying ? "SPACE  DELIVER PIZZA" : "SPACE  GRAB A PIZZA",
-         r.player.x, r.player.y - 151, 29, Ink, true);
+    Vec feet = r.previous * (1 - blend) + r.player * blend;
+    balloon(
+        {feet.x, feet.y - 124}, r.carrying ? "DELIVER PIZZA" : "GRAB A PIZZA",
+        r.carrying ? "Cash in that hot delivery!" : "A fresh order is waiting",
+        true);
   }
+  text("TRAFFIC " + std::to_string(r.level), 366, 99, 15, Mint);
+  if (r.thief.active && r.thief.warning > 0)
+    balloon({r.thief.direction > 0 ? 160.f : 1760.f, r.thief.p.y - 65},
+            "PIZZA THIEF!", "Keep your pizza out of reach");
   // Incoming traffic hints occupy only road edges, away from the playable gaps.
   for (int lane = 0; lane < 3; ++lane) {
     float y = 416.f + lane * 100;
@@ -522,6 +671,10 @@ void Renderer::overlay(const Game &game, Vec mouse) {
       text(titles[i], 470, 290 + i * 130, 34, Gold);
       text(lines[i], 470, 341 + i * 130, 28, Cream);
     }
+    text("Watch amber signals: cars change lanes as traffic levels rise.", 960,
+         655, 24, Gold, true);
+    text("Keep your pizza away from the thief. Dash to create space!", 960, 688,
+         24, Cream, true);
     text("MOVE  ARROWS / WASD       DASH  SHIFT       PAUSE  ESC / P", 960, 728,
          28, Mint, true);
     text("Dash has a short cooldown. Watch your pizza heat and your hearts.",

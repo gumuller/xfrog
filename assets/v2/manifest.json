@@ -56,6 +56,18 @@
       "width": 1774,
       "height": 887,
       "color_type": 6
+    },
+    "thief.png": {
+      "sha256": "9de3fae09c47b04025e1d34e775449292827d2f4d3c2862fc9d0313bb111d271",
+      "width": 1295,
+      "height": 1214,
+      "color_type": 6
+    },
+    "town-theme.wav": {
+      "sha256": "c31d94c84a7fba2cdddcb0dadede3dfe10daa2f47a37d42f4ee18b401a83447c",
+      "sample_rate": 32000,
+      "channels": 2,
+      "duration_seconds": 184.6153846153846
     }
   },
   "poses_grid": [
@@ -68,6 +80,10 @@
   ],
   "carry_poses_grid": [
     4,
+    2
+  ],
+  "thief_grid": [
+    2,
     2
   ]
 }
