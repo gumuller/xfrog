@@ -37,7 +37,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // INCLUDES ///////////////////////////////////////////////////////////////////////////////////
 
 
-#include <ddraw.h>
+#include "video.h"
 
 #include "types.h"
 
@@ -45,7 +45,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // PROTOTYPES /////////////////////////////////////////////////////////////////////////////////
 
 
-Surface* LoadTGA(char* filename, const surface_mem_t mem_type, PALETTEENTRY* palette);
+Surface* LoadTGA(char* filename, const surface_mem_t mem_type, PaletteEntry* palette);
 
 
 #endif

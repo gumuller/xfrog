@@ -1,6 +1,10 @@
 {
   "version": 3,
-  "cmakeMinimumRequired": { "major": 3, "minor": 24, "patch": 0 },
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 24,
+    "patch": 0
+  },
   "configurePresets": [
     {
       "name": "windows-x86",
@@ -8,10 +12,89 @@
       "generator": "Visual Studio 17 2022",
       "architecture": "Win32",
       "binaryDir": "${sourceDir}/build/windows-x86"
+    },
+    {
+      "name": "linux",
+      "displayName": "Linux (SDL3)",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/linux",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "RelWithDebInfo"
+      }
+    },
+    {
+      "name": "linux-tests",
+      "inherits": "linux",
+      "displayName": "Linux with unit, integration and executable E2E tests",
+      "binaryDir": "${sourceDir}/build/linux-tests",
+      "cacheVariables": {
+        "BUILD_TESTING": "ON",
+        "XFROG_ENABLE_E2E": "ON"
+      }
+    },
+    {
+      "name": "linux-sanitizers",
+      "inherits": "linux-tests",
+      "displayName": "Linux tests with address and undefined behavior sanitizers",
+      "binaryDir": "${sourceDir}/build/linux-sanitizers",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_CXX_FLAGS": "-fsanitize=address,undefined -fno-omit-frame-pointer",
+        "CMAKE_EXE_LINKER_FLAGS": "-fsanitize=address,undefined"
+      }
     }
   ],
   "buildPresets": [
-    { "name": "release", "configurePreset": "windows-x86", "configuration": "Release", "targets": ["xfrog"] },
-    { "name": "debug", "configurePreset": "windows-x86", "configuration": "Debug", "targets": ["xfrog"] }
+    {
+      "name": "release",
+      "configurePreset": "windows-x86",
+      "configuration": "Release",
+      "targets": [
+        "xfrog"
+      ]
+    },
+    {
+      "name": "debug",
+      "configurePreset": "windows-x86",
+      "configuration": "Debug",
+      "targets": [
+        "xfrog"
+      ]
+    },
+    {
+      "name": "linux",
+      "configurePreset": "linux",
+      "targets": [
+        "xfrog"
+      ]
+    },
+    {
+      "name": "linux-tests",
+      "configurePreset": "linux-tests"
+    },
+    {
+      "name": "linux-sanitizers",
+      "configurePreset": "linux-sanitizers"
+    }
+  ],
+  "testPresets": [
+    {
+      "name": "linux-tests",
+      "configurePreset": "linux-tests",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "linux-sanitizers",
+      "configurePreset": "linux-sanitizers",
+      "output": {
+        "outputOnFailure": true
+      },
+      "environment": {
+        "ASAN_OPTIONS": "detect_leaks=1",
+        "UBSAN_OPTIONS": "halt_on_error=1:print_stacktrace=1"
+      }
+    }
   ]
 }

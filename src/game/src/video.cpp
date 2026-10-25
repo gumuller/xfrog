@@ -60,7 +60,7 @@ Video*					g_video = NULL;
 
 
 // paleta atual do jogo
-PALETTEENTRY			g_actual_palette[256];
+PaletteEntry			g_actual_palette[256];
 
 
 // PRIVATE DATA ///////////////////////////////////////////////////////////////////////////////

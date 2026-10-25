@@ -44,7 +44,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // PROTOTYPES /////////////////////////////////////////////////////////////////////////////////
 
 
-bool CFS_Init();
+bool CFS_Init(const char* filename = nullptr);
 void CFS_Shutdown();
 
 
@@ -60,6 +60,8 @@ class CFS_File
 
 		// tries to open the file from the pack
 		bool Open();
+
+		int32 Size() const { return m_size; }
 
 		// seeks the file
 		void Seek(const int32 num_bytes, const int32 from);

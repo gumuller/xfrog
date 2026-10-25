@@ -1,0 +1,65 @@
+name: Build and test
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  linux:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        preset: [linux-tests, linux-sanitizers]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install executable E2E test tools
+        run: sudo apt-get update && sudo apt-get install -y xvfb xdotool imagemagick
+      - uses: libsdl-org/setup-sdl@main
+        with:
+          version: 3-latest
+          install-linux-dependencies: true
+      - name: Configure
+        run: cmake --preset ${{ matrix.preset }}
+      - name: Build game and tests
+        run: cmake --build --preset ${{ matrix.preset }} --parallel 2
+      - name: Run unit, integration, and executable E2E tests
+        run: ctest --preset ${{ matrix.preset }}
+      - name: Upload test evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-evidence-${{ matrix.preset }}
+          path: |
+            build/${{ matrix.preset }}/e2e-artifacts/
+            build/${{ matrix.preset }}/Testing/Temporary/
+      - name: Package Linux release runtime
+        if: matrix.preset == 'linux-tests'
+        run: python3 scripts/package_release.py --platform linux --input build/linux-tests/bin --output build/packages
+      - uses: actions/upload-artifact@v4
+        if: matrix.preset == 'linux-tests'
+        with:
+          name: release-linux
+          path: build/packages/*.tar.gz
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        configuration: [Release, Debug]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build Windows DirectX backend
+        run: ./build.ps1 -Configuration ${{ matrix.configuration }} -WithDDrawCompat
+      - name: Package Windows release runtime
+        if: matrix.configuration == 'Release'
+        run: python scripts/package_release.py --platform windows --input build/windows-x86/bin/Release --output build/packages
+      - uses: actions/upload-artifact@v4
+        if: matrix.configuration == 'Release'
+        with:
+          name: release-windows
+          path: build/packages/*.zip

@@ -1,3 +1,6 @@
+#ifdef XFROG_SDL
+#include "sdl/timer.h"
+#else
 /*
 
 Xfrog - a frogger clone.
@@ -98,5 +101,7 @@ class Timer
 // the game timer
 extern Timer*			g_timer;
 
+
+#endif
 
 #endif

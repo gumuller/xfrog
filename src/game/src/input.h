@@ -1,3 +1,6 @@
+#ifdef XFROG_SDL
+#include "sdl/input.h"
+#else
 /*
 
 Xfrog - a frogger clone.
@@ -39,6 +42,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 
 #include <dinput.h>
+enum { KEY_UP = DIK_UP, KEY_DOWN = DIK_DOWN, KEY_LEFT = DIK_LEFT, KEY_RIGHT = DIK_RIGHT, KEY_RETURN = DIK_RETURN, KEY_SPACE = DIK_SPACE, KEY_ESCAPE = DIK_ESCAPE, KEY_Y = DIK_Y, KEY_N = DIK_N };
 
 #include "types.h"
 
@@ -137,4 +141,5 @@ bool InputCheckKey(const int32 key_code, const key_state_t state);
 
 extern Input*				g_input;
 
+#endif
 #endif

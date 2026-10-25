@@ -1,3 +1,6 @@
+#ifdef XFROG_SDL
+#include "sdl/sound.h"
+#else
 /*
 
 Xfrog - a frogger clone.
@@ -153,5 +156,7 @@ void SoundUpdate();
 extern Sound*					g_sound;
 
 
+
+#endif
 
 #endif

@@ -304,13 +304,13 @@ static void MenuItemExit()
 // checks for user input
 static void CheckInput()
 {
-	if(InputCheckKey(DIK_UP, TICK))
+	if(InputCheckKey(KEY_UP, TICK))
 	{
 		m_curr_selection--;
 		m_frog_sound->Play(false, LOW);
 	}
 
-	if(InputCheckKey(DIK_DOWN, TICK))
+	if(InputCheckKey(KEY_DOWN, TICK))
 	{
 		m_curr_selection++;
 		m_frog_sound->Play(false, LOW);
@@ -322,7 +322,7 @@ static void CheckInput()
 		m_curr_selection = MENU_EXIT;
 
 	// the user has selected the option
-	if(InputCheckKey(DIK_RETURN, DOWN))
+	if(InputCheckKey(KEY_RETURN, DOWN))
 		m_selected = true;
 }
 

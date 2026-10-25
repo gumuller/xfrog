@@ -1,3 +1,6 @@
+#ifdef XFROG_SDL
+#include "sdl/platform.h"
+#else
 /*
 
 Xfrog - a frogger clone.
@@ -49,4 +52,5 @@ extern HWND				g_window_hwnd;
 extern HINSTANCE		g_hinstance;
 extern bool				g_app_focus;
 
+#endif
 #endif

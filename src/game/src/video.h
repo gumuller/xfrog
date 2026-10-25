@@ -1,3 +1,6 @@
+#ifdef XFROG_SDL
+#include "sdl/video.h"
+#else
 /*
 
 Xfrog - a frogger clone.
@@ -38,6 +41,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 
 #include <ddraw.h>
+typedef PALETTEENTRY PaletteEntry;
 
 #include "types.h"
 
@@ -253,8 +257,10 @@ void VideoUpdate();
 extern Video*					g_video;
 
 // paleta atual do jogo
-extern PALETTEENTRY				g_actual_palette[256];
+extern PaletteEntry				g_actual_palette[256];
 
 
+
+#endif
 
 #endif

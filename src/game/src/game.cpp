@@ -65,9 +65,9 @@ void GameUpdate();
 static void PrintStartingInfo();
 static void StartingUpdate();
 static void PlayingUpdate();
-static void SortZ_Entities();
-static int32 EntCompare(const void* elem1, const void* elem2);
-static inline void DrawAllEnt();
+void SortZ_Entities();
+int32 EntCompare(const void* elem1, const void* elem2);
+void DrawAllEnt();
 static void DrawRoads();
 static void DrawSidewalkAndBuildings();
 static inline void DrawPizzaria();
@@ -371,7 +371,7 @@ static void StartingUpdate()
 {
 	PrintStartingInfo();
 
-	if(InputCheckKey(DIK_SPACE, TICK))
+	if(InputCheckKey(KEY_SPACE, TICK))
 	{
 		g_game_state = PLAYING;
 
@@ -387,7 +387,7 @@ static void StartingUpdate()
 		// no spot
 		g_has_spot  = false;
 	}
-	else if(InputCheckKey(DIK_ESCAPE, TICK))
+	else if(InputCheckKey(KEY_ESCAPE, TICK))
 	{
 		g_engine_state = MENU;
 	}
@@ -399,7 +399,7 @@ static void StartingUpdate()
 // updates the gameplay
 static void PlayingUpdate()
 {
-	if(InputCheckKey(DIK_ESCAPE, DOWN))
+	if(InputCheckKey(KEY_ESCAPE, DOWN))
 	{
 		g_engine_state = MENU;	
 	}
@@ -450,7 +450,7 @@ static void PlayingUpdate()
 
 
 // sort the list of entities to draw
-static void SortZ_Entities()
+void SortZ_Entities()
 {
 	// sort the game entities
 	qsort((void*) &GameEnt::m_ent_list[0],
@@ -462,7 +462,7 @@ static void SortZ_Entities()
 
 
 // compare two game entites for the sorting
-static int32 EntCompare(const void* elem1, const void* elem2)
+int32 EntCompare(const void* elem1, const void* elem2)
 {	
 	
 	// gets the entities
@@ -487,7 +487,7 @@ static int32 EntCompare(const void* elem1, const void* elem2)
 
 
 // draw all entities
-static inline void DrawAllEnt()
+void DrawAllEnt()
 {
 	// draw all the game entities
 	GameEnt** curr_ptr = &GameEnt::m_ent_list[0];
@@ -641,7 +641,7 @@ static void GameOverUpdate()
 	PrintCenter(472,"Press ESC to return to the menu");
 
 	// check for user input
-	if(InputCheckKey(DIK_ESCAPE, DOWN))
+	if(InputCheckKey(KEY_ESCAPE, DOWN))
 	{
 		g_engine_state = MENU;
 		g_game_state   = STARTING;

@@ -33,6 +33,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // INCLUDES ///////////////////////////////////////////////////////////////////////////////////
 
 
+#include "xfrog_main.h"
 #include "types.h"
 #include "error.h"
 #include "video.h"
@@ -77,7 +78,7 @@ bool EngineInit()
 	result = CFS_Init();
 	if(result == false)
 	{
-		PostQuitMessage(0);
+		return(false);
 	}
 
 	///////////////////////////////////////////////////
@@ -87,7 +88,7 @@ bool EngineInit()
 	result = VideoInit();
 	if(result == false)
 	{
-		PostQuitMessage(0);
+		return(false);
 	}
 
 	///////////////////////////////////////////////////
@@ -98,7 +99,7 @@ bool EngineInit()
 	result = InputInit();
 	if(result == false)
 	{
-		PostQuitMessage(0);
+		return(false);
 	}
 
 	///////////////////////////////////////////////////
@@ -108,7 +109,7 @@ bool EngineInit()
 	result = TimerInit();
 	if(result == false)
 	{
-		PostQuitMessage(0);
+		return(false);
 	}
 
 	///////////////////////////////////////////////////
@@ -119,7 +120,7 @@ bool EngineInit()
 	result = SoundInit();
 	if(result == false)
 	{
-		PostQuitMessage(0);
+		return(false);
 	}
 
 	///////////////////////////////////////////////////
@@ -129,7 +130,7 @@ bool EngineInit()
 	result = MenuInit();
 	if(result == false)
 	{
-		PostQuitMessage(0);
+		return(false);
 	}
 
 	///////////////////////////////////////////////////
@@ -139,7 +140,7 @@ bool EngineInit()
 	result = FontEngineInit();
 	if(result == false)
 	{
-		PostQuitMessage(0);
+		return(false);
 	}
 
 	///////////////////////////////////////////////////
@@ -149,7 +150,7 @@ bool EngineInit()
 	result = GameInit();
 	if(result == false)
 	{
-		PostQuitMessage(0);
+		return(false);
 	}
 
 	///////////////////////////////////////////////////
@@ -279,9 +280,9 @@ static void EngineExit()
 	
 	PrintCenter(236,"Do you want to exit ? (Y/N)");
 
-	if(InputCheckKey(DIK_Y, DOWN))
+	if(InputCheckKey(KEY_Y, DOWN))
 		PostQuitMessage(0);
-	else if(InputCheckKey(DIK_N, DOWN))
+	else if(InputCheckKey(KEY_N, DOWN))
 		g_engine_state = MENU;
 
 }

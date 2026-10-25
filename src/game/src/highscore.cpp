@@ -38,6 +38,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include <stdlib.h>
 #include <string.h>
 
+#include "xfrog_main.h"
 #include "types.h"
 #include "font.h"
 #include "video.h"
@@ -77,11 +78,24 @@ static int32		m_old_high_score = 0;
 
 
 
+#ifndef XFROG_SDL
+static const char* HighScorePath() { return "hs.dat"; }
+#endif
+
 // init high score
 bool HighScoreInit()
 {	
-	FILE* fp = fopen("hs.dat", "rb");
-	// the high score file don't exist
+	FILE* fp = fopen(HighScorePath(), "rb");
+	#ifdef XFROG_SDL
+    // A fresh installation starts with zero; no writable seed file is required.
+    if(fp == NULL) {
+        fp = fopen(HighScorePath(), "wb");
+        int32 seed=2125;
+        if(fp) { fwrite(&seed,sizeof(seed),1,fp); fclose(fp); }
+        fp = fopen(HighScorePath(), "rb");
+    }
+#endif
+    // the high score file don't exist
 	if(fp == NULL)
 	{
 		Error error("The high score file doens't exist\n");
@@ -93,7 +107,7 @@ bool HighScoreInit()
 	fseek(fp, 0, SEEK_END);
 	int32 filesize = ftell(fp);
 	fseek(fp, 0, SEEK_SET);
-	if(filesize > 4)
+	if(filesize != 4)
 	{
 		Error error("The high score file is not valid\n");
 		error.Report();
@@ -132,7 +146,7 @@ void HighScoreShutdown()
 	if(g_high_score > m_old_high_score)
 	{
 		fclose(m_fp);
-		FILE* fp = fopen("hs.dat", "wb");
+		FILE* fp = fopen(HighScorePath(), "wb");
 		if(fp == NULL)
 			return;		
 

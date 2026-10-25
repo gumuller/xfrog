@@ -37,6 +37,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include <stdlib.h>
 #include <string.h>
 #include <stdarg.h>
+#ifdef XFROG_SDL
+#include <stdexcept>
+#endif
 
 #include "error.h"
 #include "xfrog_main.h"
@@ -52,13 +55,13 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 Error::Error(char msg[], ...)
 {
 	// keeps space for extra parameters
-	m_msg = new char[strlen(msg) + 64];
-	Memset(m_msg, '\0', strlen(msg) + 64);
+	m_msg = new char[2048];
+	Memset(m_msg, '\0', 2048);
 
 	// prepares the list of arguments
 	va_list  arglist;
 	va_start(arglist, msg);
-	vsprintf(m_msg, msg, arglist);
+	vsnprintf(m_msg, 2048, msg, arglist);
 	va_end(arglist);
 }
 
@@ -73,6 +76,9 @@ Error::~Error()
 
 void Error::Report()
 {
+	#ifdef XFROG_SDL
+	throw std::runtime_error(m_msg);
+#else
 	// flip the GDI to top
 	g_video->GetObj()->FlipToGDISurface();
 
@@ -85,5 +91,6 @@ void Error::Report()
 			   MB_ICONERROR);
 	
 	ShowCursor(false);
+#endif
 	
 }

@@ -681,7 +681,7 @@ void Player::CheckPlayerActions()
 	old_state = m_state;
 	
 	// check if the player want to walk
-	if(InputCheckKey(DIK_RIGHT, DOWN))
+	if(InputCheckKey(KEY_RIGHT, DOWN))
 	{
 		m_state = WALKING_RIGHT;
 		if(m_state != old_state)
@@ -693,7 +693,7 @@ void Player::CheckPlayerActions()
 	
 		return;
 	}
-	else if(InputCheckKey(DIK_LEFT, DOWN))
+	else if(InputCheckKey(KEY_LEFT, DOWN))
 	{
 		m_state = WALKING_LEFT;
 		if(m_state != old_state)
@@ -705,7 +705,7 @@ void Player::CheckPlayerActions()
 		return;
 	}
 
-	else if(InputCheckKey(DIK_DOWN, DOWN))
+	else if(InputCheckKey(KEY_DOWN, DOWN))
 	{
 		m_state = WALKING_DOWN;
 		if(m_state != old_state)
@@ -716,7 +716,7 @@ void Player::CheckPlayerActions()
 		
 		return;
 	}
-	else if(InputCheckKey(DIK_UP, DOWN))
+	else if(InputCheckKey(KEY_UP, DOWN))
 	{
 		m_state = WALKING_UP;
 		if(m_state != old_state)
@@ -838,7 +838,7 @@ void Player::DeliveringUpdateState()
 		if((player_x+m_cwidth>=m_deliver_spot->x && player_x<=m_deliver_spot->x+m_deliver_spot->width)&&
 		   (player_y+m_cheight>=m_deliver_spot->y && player_y<=m_deliver_spot->y+m_deliver_spot->height))
 		{
-			if(InputCheckKey(DIK_SPACE, DOWN))
+			if(InputCheckKey(KEY_SPACE, DOWN))
 			{
 				m_deliver_state = DELIVERED;				
 			}

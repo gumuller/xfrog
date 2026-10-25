@@ -37,7 +37,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include <stdlib.h>
 #include <string.h>
 
-#include <ddraw.h>
+#include "video.h"
 
 
 #include "types.h"
@@ -83,7 +83,7 @@ struct tga_header_t
 // PROTOTYPES /////////////////////////////////////////////////////////////////////////////////
 
 
-Surface* LoadTGA(char* filename, const surface_mem_t mem_type, PALETTEENTRY* palette);
+Surface* LoadTGA(char* filename, const surface_mem_t mem_type, PaletteEntry* palette);
 
 
 // FUNCTIONS //////////////////////////////////////////////////////////////////////////////////
@@ -91,7 +91,7 @@ Surface* LoadTGA(char* filename, const surface_mem_t mem_type, PALETTEENTRY* pal
 
 
 // loads a tga file and return it on a surface
-Surface* LoadTGA(char* filename, const surface_mem_t mem_type, PALETTEENTRY* palette)
+Surface* LoadTGA(char* filename, const surface_mem_t mem_type, PaletteEntry* palette)
 {
 	static char name[64];
 	Memset(name, '\0', sizeof(name));

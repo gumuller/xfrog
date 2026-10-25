@@ -19,357 +19,93 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
 
-/**************************************************************
-
-  Author:		Gustavo Simi Muller -> muller@netpar.com.br
-
-  Date:			25/01/2000
-
-  Description:	Functions to read cfs files.
-
-****************************************************************/
-
-
-// INCLUDES ///////////////////////////////////////////////////////////////////////////////////
-
-
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-
+// The original disk records are always 80 bytes, including a discarded 32-bit
+// linked-list pointer. Never deserialize a native pointer or zlib length from disk.
+#include <cstdio>
+#include <cstring>
+#include <cstdint>
+#include <vector>
+#include <string>
 #include <zlib.h>
-
-#include "types.h"
-
-#include "mem_man.h"
-#include "error.h"
 #include "cfs.h"
-
-
-// DEFINES ////////////////////////////////////////////////////////////////////////////////////
-
-
-// the header of the pack
-#define CFS_ID			"CFS\0"
-
-
-// name of the pack
-#define PACK_NAME		"xfrog.cfs"
-
-
-// STRUCTS ////////////////////////////////////////////////////////////////////////////////////
-
-
-#pragma pack(push, 1)
-
-// the cfs header
-struct cfs_header_t
-{
-	char		id[4];				// id of the file
-	int32		num_files;			// number of files in
-	int32		pack_size;			// size of the pack
-};
-
-
-#pragma pack(1)
-
-// one file of the pack
-struct cfs_file_t
-{
-	char		name[64];			// name of the file
-	int32		offset;				// offset on the pack
-	int32		csize;				// compressed size
-	int32		usize;				// uncompressed size
-
-	cfs_file_t* next;
-};
-
-#pragma pack(pop)
-static_assert(sizeof(cfs_file_t) == 80, "CFS requires the original 32-bit file layout");
-
-
-// PROTOTYPES /////////////////////////////////////////////////////////////////////////////////
-
-
-bool CFS_Init();
-void CFS_Shutdown();
-
-static bool AddFileToList(cfs_file_t* file);
-
-
-// PRIVATE DATA ///////////////////////////////////////////////////////////////////////////////
-
-
-// pack file pointer
-static FILE*				m_fp			= NULL;
-
-
-// the list of the files read
-static cfs_file_t*			m_file_list		= NULL;
-
-
-
-// FUNCTIONS //////////////////////////////////////////////////////////////////////////////////
-
-
-
-// inits the Compressed File System
-bool CFS_Init()
-{
-	if(m_fp != NULL)
-		return(true);
-
-	m_fp = fopen(PACK_NAME, "rb");
-	if(m_fp == NULL)
-	{
-		Error error("Error trying to open pack %s\n", PACK_NAME);
-		error.Report();	
-
-		return(false);
-	}	
-
-	
-	// read the header
-	cfs_header_t header;
-	Memset(&header, 0, sizeof(header));
-	fread(&header, sizeof(header), 1, m_fp);
-
-	// check if is a CFS pack
-	if(strcmp(header.id, CFS_ID) != 0)
-	{
-		Error error("Error the file %s is not a CFS pack\n", PACK_NAME);
-		error.Report();
-
-		fclose(m_fp);
-
-		return(false);
-	}
-	
-	// reads the number of files in the pack
-	int32 num_files = header.num_files;
-
-	// adjusts the pack for the file list reading
-	int32 curr_offset = sizeof(header);
-	
-	// reads the file list
-	for(int32 i = 0; i < num_files; i++)
-	{
-		// creates a new cfs file
-		cfs_file_t* file = new cfs_file_t;
-		Memset(file, 0, sizeof(cfs_file_t));
-
-		// go to the right offset
-		fseek(m_fp, curr_offset, SEEK_SET);
-
-		// reads the file struct
-		fread(file, sizeof(cfs_file_t), 1, m_fp);
-
-		AddFileToList(file);
-
-		// adjust the offset
-		curr_offset += file->csize + sizeof(cfs_file_t);
-	}
-    
-
-	// ok
-	return(true);
+#include "error.h"
+#ifdef XFROG_SDL
+#include <SDL3/SDL.h>
+#endif
+namespace {
+struct Entry { char name[64]; uint32 offset,csize,usize; };
+std::vector<Entry> entries;
+FILE* pack=nullptr;
+uint32 LE32(const byte* p) { return uint32(p[0]) | uint32(p[1])<<8 | uint32(p[2])<<16 | uint32(p[3])<<24; }
+bool Fail(const char* message) {
+    CFS_Shutdown();
+    Error error(const_cast<char*>("%s"),message); error.Report(); return false;
 }
-
-
-
-
-// shutdown the CFS
-void CFS_Shutdown()
-{
-	if(m_fp == NULL)
-		return;
-
-	// lets clear all the list
-	cfs_file_t**	curr_ptr = &m_file_list;
-	while(*curr_ptr != NULL)
-	{
-		cfs_file_t* temp_ptr = m_file_list->next;
-		delete m_file_list;
-		m_file_list = temp_ptr;
-	}
-
-	fclose(m_fp);
-	m_fp = NULL;
 }
-
-
-
-// CFS_File CLASS IMP /////////////////////////////////////////////////////////////////////////
-
-
-
-CFS_File::CFS_File(char* filename)
-		 : m_name(NULL),
-		   m_size(0),
-		   m_data(NULL),
-		   m_ptr(NULL)
-{
-	m_name = new char[strlen(filename)+1];
-	Memset(m_name, '\0', strlen(filename)+1);
-
-	strcpy(m_name, filename);	
+bool CFS_Init(const char* filename) {
+    if(pack) return true;
+#ifdef XFROG_SDL
+    const char* base=SDL_GetBasePath();
+    if(!base) return Fail("Cannot locate game data");
+    std::string path=std::string(base)+"xfrog.cfs";
+    pack=fopen(filename ? filename : path.c_str(),"rb");
+#else
+    pack=fopen(filename ? filename : "xfrog.cfs","rb");
+#endif
+    if(!pack) return Fail("Cannot open xfrog.cfs");
+    if(fseek(pack,0,SEEK_END)!=0) return Fail("Cannot read asset pack");
+    long length=ftell(pack);
+    rewind(pack);
+    byte header[12];
+    if(length<12 || fread(header,1,12,pack)!=12 || memcmp(header,"CFS\0",4)) return Fail("Invalid CFS header");
+    uint32 count=LE32(header+4);
+    if(count>uint32((length-12)/80)) return Fail("Invalid CFS file count");
+    uint64_t offset=12;
+    for(uint32 i=0;i<count;++i) {
+        byte record[80];
+        if(offset+80>uint64_t(length) || fseek(pack,long(offset),SEEK_SET) || fread(record,1,80,pack)!=80)
+            return Fail("Truncated CFS record");
+        Entry entry;
+        memcpy(entry.name,record,64);
+        entry.offset=LE32(record+64); entry.csize=LE32(record+68); entry.usize=LE32(record+72);
+        if(!memchr(entry.name,0,64) || entry.offset!=offset || !entry.csize || !entry.usize ||
+           entry.usize>64*1024*1024 || offset+80+entry.csize>uint64_t(length)) return Fail("Invalid CFS record");
+        entries.push_back(entry);
+        offset+=80+entry.csize;
+    }
+    return true;
 }
-
-
-
-
-CFS_File::~CFS_File()
-{
-	if(m_data != NULL)
-	{
-		delete [] m_data;
-	}
-
-	if(m_name != NULL)
-	{
-		delete [] m_name;
-	}
+void CFS_Shutdown() { entries.clear(); if(pack) fclose(pack); pack=nullptr; }
+CFS_File::CFS_File(char* name) : m_name(nullptr),m_size(0),m_data(nullptr),m_ptr(nullptr) {
+    m_name=new char[strlen(name)+1]; strcpy(m_name,name);
 }
-
-
-
-bool CFS_File::Open()
-{
-	if(m_name == NULL)
-		return(false);
-
-	// runs along the list to find the file
-	for(cfs_file_t* curr_ptr = m_file_list;
-	    curr_ptr != NULL;
-		curr_ptr = curr_ptr->next)
-		{
-			// found it !
-			if(strcmp(curr_ptr->name, m_name) == 0)
-			{
-				// allocate temp space for compressed data
-				byte* temp_data = new byte[curr_ptr->csize];
-				Memset(temp_data, 0, curr_ptr->csize);
-
-				// allocate space for file data
-				m_data = new byte[curr_ptr->usize];
-				Memset(m_data, 0, curr_ptr->usize);
-				int32 usize = curr_ptr->usize;
-				
-
-				// reads data out
-				fseek(m_fp, (curr_ptr->offset + sizeof(cfs_file_t)), SEEK_SET);
-				fread(temp_data, curr_ptr->csize, 1, m_fp);
-
-
-				// uncompress data
-				int32 result = uncompress((Bytef*)  m_data,
-					                      (uLongf*) &usize,
-										  (Bytef*)  temp_data,
-										  (uLongf)	curr_ptr->csize);
-				
-				if(result != Z_OK)
-				{
-					Error error("Error trying to uncompress %s\n", m_name);
-					error.Report();
-
-					delete [] temp_data;
-
-					return(false);
-				}
-				
-
-				delete [] temp_data;
-
-				// point to the data
-				m_ptr  = m_data;
-				m_size = curr_ptr->usize;
-
-				// get out of the loop
-				return(true);
-			}
-		}	
-
-	Error error("File %s doesn't exists on pack\n", m_name);
-	error.Report();
-
-	return(false);
+CFS_File::~CFS_File() { delete[] m_name; delete[] m_data; }
+bool CFS_File::Open() {
+    if(!pack) return false;
+    for(const auto& entry:entries) if(!strcmp(entry.name,m_name)) {
+        std::vector<byte> compressed(entry.csize);
+        if(fseek(pack,long(entry.offset)+80,SEEK_SET) || fread(compressed.data(),1,entry.csize,pack)!=entry.csize) return false;
+        delete[] m_data; m_data=new byte[entry.usize]; m_ptr=nullptr; m_size=0;
+        uLongf size=entry.usize;
+        int result=uncompress(m_data,&size,compressed.data(),uLong(entry.csize));
+        if(result!=Z_OK || size!=entry.usize) return false;
+        m_size=int32(size); m_ptr=m_data; return true;
+    }
+    Error error(const_cast<char*>("Missing asset: %s"),m_name); error.Report(); return false;
 }
-
-
-
-void CFS_File::Seek(const int32 num_bytes, const int32 from)
-{
-	if(m_data == NULL)
-		return;
-
-	switch(from)
-	{
-		// from the start of the file
-		case SEEK_SET:
-			{
-				m_ptr = m_data;
-				m_ptr += num_bytes;
-
-				return;
-			} break;
-
-		// from current position
-		case SEEK_CUR:
-			{
-				m_ptr += num_bytes;
-
-				return;
-			} break;
-
-			
-		// from the end
-		case SEEK_END:
-			{
-				m_ptr = &m_data[m_size-1];
-				m_ptr += num_bytes;
-
-				return;
-			} break;
-
-		default: break;
-	}
+void CFS_File::Seek(int32 bytes,int32 from) {
+    if(!m_ptr) return;
+    int64_t base=from==SEEK_SET ? 0 : from==SEEK_CUR ? m_ptr-m_data : from==SEEK_END ? m_size : -1;
+    int64_t position=base+int64_t(bytes);
+    if(base<0 || position<0 || position>m_size) {
+        Error error(const_cast<char*>("Invalid seek in %s"),m_name); error.Report(); return;
+    }
+    m_ptr=m_data+position;
 }
-
-
-
-bool CFS_File::Read(void* dest, const int32 size, const int32 count)
-{
-	if(m_data == NULL)
-		return(false);
-
-	byte* dest_ptr = (byte*) dest;
-
-	// reads the file
-	for(int32 i = 0; i < count; i++)
-	{
-		Memcpy(dest_ptr, m_ptr, size);
-
-		m_ptr    += size;
-		dest_ptr += size;
-	}
-
-	return(true);
-}
-
-
-
-// PRIVATE FUNCTIONS //////////////////////////////////////////////////////////////////////////
-
-
-
-// add a file to the top of the list
-static bool AddFileToList(cfs_file_t* file)
-{
-	if(file == NULL)
-		return(false);
-
-	file->next	= m_file_list;
-	m_file_list = file;
-
-	return(true);
+bool CFS_File::Read(void* dest,int32 size,int32 count) {
+    if(!m_ptr || size<0 || count<0) return false;
+    uint64_t bytes=uint64_t(size)*uint64_t(count);
+    if(bytes>uint64_t(m_size-(m_ptr-m_data))) return false;
+    if(bytes) memcpy(dest,m_ptr,size_t(bytes));
+    m_ptr+=bytes; return true;
 }
