@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.24)
-project(xfrog VERSION 1.2 LANGUAGES C CXX)
+project(xfrog VERSION 1.3 LANGUAGES C CXX)
 
 if(WIN32 AND NOT CMAKE_SIZEOF_VOID_P EQUAL 4)
     message(FATAL_ERROR "Xfrog requires 32-bit Windows. Configure with -A Win32.")

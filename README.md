@@ -1,4 +1,4 @@
-# Xfrog 1.02
+# Xfrog 1.03
 
 Original Xfrog game by Gustavo Simi Muller, recovered from the March 10, 2000 release archive, with modern Windows and native Linux builds.
 
